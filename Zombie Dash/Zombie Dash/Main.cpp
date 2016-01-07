@@ -254,8 +254,8 @@ struct drawable
 };
 
 
-
-
+Player TheGuy;
+Animation TheGuyAnim;
 
 
 
@@ -270,6 +270,12 @@ void draw(drawable inp)
 	}
 }
 
+void load()
+{
+	TheGuyAnim.load("f_body.png", 8, 100, 0, 0, 320, 60/*, 255, 255, 255*/);
+	TheGuy.Anim = &TheGuyAnim;
+}
+
 void Init()
 {
 	G_Rect WinPos;
@@ -279,7 +285,11 @@ void Init()
 
 	G_InitSDL();
 
+	load();
+
 	G_CreateWindow("Zombie Dash", WinPos, 255, 255, 255);
+	TheGuy.x = 0;
+	TheGuy.y = 0;
 }
 
 void HandleEvent()
@@ -298,12 +308,12 @@ void HandleEvent()
 
 void Start()
 {
-
+	draw(TheGuy);
 }
 
 void Play()
 {
-
+	
 }
 
 void Pause()
