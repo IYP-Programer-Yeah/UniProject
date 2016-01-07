@@ -257,6 +257,8 @@ struct drawable
 Player TheGuy;
 Animation TheGuyAnim;
 
+Player TheGirl;
+Animation TheGirlAnim;
 
 
 void draw(drawable inp)
@@ -272,8 +274,26 @@ void draw(drawable inp)
 
 void load()
 {
-	TheGuyAnim.load("Pics\\f_body.bmp", 8, 100, 0, 0, 320, 60, 255, 255, 255);
+	TheGuyAnim.load("Pics\\body.png", 8, 100, 0, 0, 304, 60);
 	TheGuy.Anim = &TheGuyAnim;
+
+	TheGuy.x = 0;
+	TheGuy.y = 0;
+	TheGuy.Pos.w = 100;
+	TheGuy.Pos.h = 100;
+
+	TheGuy.Right = true;
+
+	TheGirlAnim.load("Pics\\f_body.png", 8, 100, 0, 0, 320, 60);
+	TheGirl.Anim = &TheGirlAnim;
+
+	TheGirl.x = 100;
+	TheGirl.y = 0;
+	TheGirl.Pos.w = 100;
+	TheGirl.Pos.h = 100;
+
+	TheGirl.Right = true;
+
 }
 
 void Init()
@@ -285,18 +305,14 @@ void Init()
 
 	G_InitSDL();
 
-	G_CreateWindow("Zombie Dash", WinPos, 255, 255, 255);
+	G_CreateWindow("Zombie Dash", WinPos, 0, 0, 100);
 
 	load();
 
-	TheGuy.x = 0;
-	TheGuy.y = 0;
-	TheGuy.Pos.w = 100;
-	TheGuy.Pos.h = 100;
 
-	TheGuy.Right = true;
 
 	TheGuy.Anim->play();
+	TheGirl.Anim->play();
 
 }
 
@@ -317,6 +333,7 @@ void HandleEvent()
 void Start()
 {
 	draw(TheGuy);
+	draw(TheGirl);
 }
 
 void Play()
