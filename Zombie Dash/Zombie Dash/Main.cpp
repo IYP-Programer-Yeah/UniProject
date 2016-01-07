@@ -272,7 +272,7 @@ void draw(drawable inp)
 
 void load()
 {
-	TheGuyAnim.load("f_body.png", 8, 100, 0, 0, 320, 60/*, 255, 255, 255*/);
+	TheGuyAnim.load("Pics\\f_body.bmp", 8, 100, 0, 0, 320, 60, 255, 255, 255);
 	TheGuy.Anim = &TheGuyAnim;
 }
 
@@ -285,11 +285,19 @@ void Init()
 
 	G_InitSDL();
 
+	G_CreateWindow("Zombie Dash", WinPos, 255, 255, 255);
+
 	load();
 
-	G_CreateWindow("Zombie Dash", WinPos, 255, 255, 255);
 	TheGuy.x = 0;
 	TheGuy.y = 0;
+	TheGuy.Pos.w = 100;
+	TheGuy.Pos.h = 100;
+
+	TheGuy.Right = true;
+
+	TheGuy.Anim->play();
+
 }
 
 void HandleEvent()
