@@ -2,6 +2,14 @@
 
 #undef main
 
+
+#define Start_Menu		1
+#define Play_Mode		2
+#define Pause_Menu		3
+#define Won_Menu		4
+#define Lost_Menu		5
+#define Player_Menu		6
+
 struct Animation
 {
 	G_Texture* Texture;
@@ -24,6 +32,7 @@ struct Animation
 
 	~Animation()
 	{
+		G_DestroyTexture(Texture);
 		if (StopFrame != -2)
 			delete[] Src;
 	}
@@ -68,31 +77,83 @@ struct Animation
 
 struct Background
 {
-	Animation BackGround;
+	Animation Pic;
 };
 
-struct Block
+struct Player
 {
-	Animation *Pic;
-	G_Rect Dst;
 	float x, y;
 	float Vx, Vy;
-	Block()
-	{
-		Vx = 0;
-		Vy = 0;
-	}
+	G_Rect Pos;
+	Animation *Anim;
+	bool Right;
 	void update_pos(int dt)
 	{
-		x += dt*Vx;
-		y += dt*Vy;
+		x += float(dt)*Vx;
+		y += float(dt)*Vy;
 	}
 };
 
-struct Rope
+struct Button
 {
-	Animation *Pic;
+	int X, Y;
 	G_Rect Dst;
+	Animation *States[3];
+	bool IsOn;
+	bool Pressed;
+	bool Puls;
+
+	Button()
+	{
+		IsOn = false;
+		Pressed = false;
+	}
+
+	void Update(int mouseX, int mouseY, G_EventType Event)
+	{
+		Puls = false;
+		IsOn = false;
+		if (mouseX >= Dst.x&&mouseX <= Dst.x + Dst.w&&mouseY >= Dst.y&&mouseY <= Dst.y + Dst.h)
+			IsOn = true;
+		if (IsOn&&Event == G_MOUSEBUTTONDOWN&&G_Mouse == G_BUTTON_LEFT)
+			Pressed = true;
+		if (IsOn&&Event == G_MOUSEBUTTONUP&&G_Mouse == G_BUTTON_LEFT)
+		{
+			if (Pressed)
+				Puls = true;
+			Pressed = false;
+		}
+	}
+};
+
+struct CheckBox
+{
+	bool Checked;
+	bool Pressed;
+
+	Animation *States[2];
+
+	G_Rect Dst;
+
+	CheckBox()
+	{
+		Checked = false;
+		Pressed = false;
+	}
+
+	void Update(int mouseX, int mouseY, G_EventType Event)
+	{
+		if (mouseX >= Dst.x&&mouseX <= Dst.x + Dst.w&&mouseY >= Dst.y&&mouseY <= Dst.y + Dst.h)
+		{
+			if (Event == G_MOUSEBUTTONDOWN&&G_Mouse == G_BUTTON_LEFT)
+				Pressed = true;
+			if (Pressed && Event == G_MOUSEBUTTONUP&&G_Mouse == G_BUTTON_LEFT)
+			{
+				Pressed = false;
+				Checked = !Checked;
+			}
+		}
+	}
 };
 
 struct drawable
@@ -102,55 +163,87 @@ struct drawable
 	G_Rect* Src;
 	G_Rect* Dst;
 
+	SDL_RendererFlip Flip;
+
 	drawable()
 	{
 	}
 
 	drawable(Background &inp)
 	{
-		if (inp.BackGround.StopFrame != -2)
+		if (inp.Pic.StopFrame != -2)
 		{
-			if (inp.BackGround.StopFrame == -1)
-				Src = &inp.BackGround.Src[((G_GetTicks() - inp.BackGround.StartTime) / inp.BackGround.FrameDuration + inp.BackGround.PausedFrame) % inp.BackGround.FrameCount];
+			if (inp.Pic.StopFrame == -1)
+				Src = &inp.Pic.Src[((G_GetTicks() - inp.Pic.StartTime) / inp.Pic.FrameDuration + inp.Pic.PausedFrame) % inp.Pic.FrameCount];
 			else
-				Src = &inp.BackGround.Src[inp.BackGround.PausedFrame];
+				Src = &inp.Pic.Src[inp.Pic.PausedFrame];
 			Dst = NULL;
-			Texture = inp.BackGround.Texture;
+			Texture = inp.Pic.Texture;
 		}
 		else
 			Texture = NULL;
 	}
 
-	drawable(Block &inp)
+	drawable(Player &inp)
 	{
-		inp.Dst.x = int(inp.x);
-		inp.Dst.y = int(inp.y);
-
-		if (inp.Pic[0].StopFrame != -2)
+		inp.Pos.x = int(inp.x);
+		inp.Pos.y = int(inp.y);
+		if (inp.Anim[0].StopFrame != -2)
 		{
-			if (inp.Pic[0].StopFrame == -1)
-				Src = &inp.Pic[0].Src[((G_GetTicks() - inp.Pic[0].StartTime) / inp.Pic[0].FrameDuration + inp.Pic[0].PausedFrame) % inp.Pic[0].FrameCount];
+			if (inp.Anim[0].StopFrame == -1)
+				Src = &inp.Anim[0].Src[((G_GetTicks() - inp.Anim[0].StartTime) / inp.Anim[0].FrameDuration + inp.Anim[0].PausedFrame) % inp.Anim[0].FrameCount];
 			else
-				Src = &inp.Pic[0].Src[inp.Pic[0].PausedFrame];
-			Dst = &inp.Dst;
-			Texture = inp.Pic[0].Texture;
+				Src = &inp.Anim[0].Src[inp.Anim[0].PausedFrame];
+			Dst = &inp.Pos;
+			Texture = inp.Anim[0].Texture;
+			if (inp.Right)
+				Flip = SDL_FLIP_NONE;
+			else
+				Flip = SDL_FLIP_HORIZONTAL;
 		}
 		else
 			Texture = NULL;
 	}
-	drawable(Rope &inp)
+	drawable(Button &inp)
 	{
-		inp.Dst.x = inp.Dst.x;
-		inp.Dst.y = inp.Dst.y;
+		Animation *Anim;
+		if (inp.Pressed)
+			Anim = inp.States[2];
+		else if (inp.IsOn)
+			Anim = inp.States[1];
+		else
+			Anim = inp.States[0];
 
-		if (inp.Pic[0].StopFrame != -2)
+		if (Anim[0].StopFrame != -2)
 		{
-			if (inp.Pic[0].StopFrame == -1)
-				Src = &inp.Pic[0].Src[((G_GetTicks() - inp.Pic[0].StartTime) / inp.Pic[0].FrameDuration + inp.Pic[0].PausedFrame) % inp.Pic[0].FrameCount];
+			if (Anim[0].StopFrame == -1)
+				Src = &Anim[0].Src[((G_GetTicks() - Anim[0].StartTime) / Anim[0].FrameDuration + Anim[0].PausedFrame) % Anim[0].FrameCount];
 			else
-				Src = &inp.Pic[0].Src[inp.Pic[0].PausedFrame];
+				Src = &Anim[0].Src[Anim[0].PausedFrame];
 			Dst = &inp.Dst;
-			Texture = inp.Pic[0].Texture;
+			Texture = Anim[0].Texture;
+			Flip = SDL_FLIP_NONE;
+		}
+		else
+			Texture = NULL;
+	}
+	drawable(CheckBox &inp)
+	{
+		Animation *Anim;
+		if (inp.Checked)
+			Anim = inp.States[0];
+		else
+			Anim = inp.States[1];
+
+		if (Anim[0].StopFrame != -2)
+		{
+			if (Anim[0].StopFrame == -1)
+				Src = &Anim[0].Src[((G_GetTicks() - Anim[0].StartTime) / Anim[0].FrameDuration + Anim[0].PausedFrame) % Anim[0].FrameCount];
+			else
+				Src = &Anim[0].Src[Anim[0].PausedFrame];
+			Dst = &inp.Dst;
+			Texture = Anim[0].Texture;
+			Flip = SDL_FLIP_NONE;
 		}
 		else
 			Texture = NULL;
@@ -162,13 +255,13 @@ void draw(drawable inp)
 	if (inp.Texture != NULL)
 	{
 		if (inp.Dst == NULL)
-			G_Draw(inp.Texture, inp.Src, inp.Dst, true);
+			G_DrawEx(inp.Texture, inp.Src, inp.Dst, inp.Flip, true);
 		else
-			G_Draw(inp.Texture, inp.Src, inp.Dst);
+			G_DrawEx(inp.Texture, inp.Src, inp.Dst, inp.Flip);
 	}
 }
 
 void main()
 {
-
+	int GameState;
 }
