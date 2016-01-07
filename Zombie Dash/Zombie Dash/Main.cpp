@@ -2,13 +2,16 @@
 
 #undef main
 
-
 #define Start_Menu		1
 #define Play_Mode		2
 #define Pause_Menu		3
 #define Won_Menu		4
 #define Lost_Menu		5
 #define Player_Menu		6
+#define Clear_For_Exit	7
+
+static int mouseX, mouseY, Event;
+static int GameState = Start_Menu;
 
 struct Animation
 {
@@ -109,7 +112,7 @@ struct Button
 		Pressed = false;
 	}
 
-	void Update(int mouseX, int mouseY, G_EventType Event)
+	void Update()
 	{
 		Puls = false;
 		IsOn = false;
@@ -141,7 +144,7 @@ struct CheckBox
 		Pressed = false;
 	}
 
-	void Update(int mouseX, int mouseY, G_EventType Event)
+	void Update()
 	{
 		if (mouseX >= Dst.x&&mouseX <= Dst.x + Dst.w&&mouseY >= Dst.y&&mouseY <= Dst.y + Dst.h)
 		{
@@ -250,6 +253,12 @@ struct drawable
 	}
 };
 
+
+
+
+
+
+
 void draw(drawable inp)
 {
 	if (inp.Texture != NULL)
@@ -261,7 +270,102 @@ void draw(drawable inp)
 	}
 }
 
+void Init()
+{
+	G_Rect WinPos;
+	WinPos.x = WinPos.y = SDL_WINDOWPOS_UNDEFINED;
+	WinPos.w = 1000;
+	WinPos.h = 600;
+
+	G_InitSDL();
+
+	G_CreateWindow("Zombie Dash", WinPos, 255, 255, 255);
+}
+
+void HandleEvent()
+{
+	Event = G_Event();
+
+	if (Event == G_MOUSEMOTION)
+	{
+		mouseX = G_motion.x;
+		mouseY = G_motion.y;
+	}
+	if (Event == G_QUIT)
+		GameState = Clear_For_Exit;
+
+}
+
+void Start()
+{
+
+}
+
+void Play()
+{
+
+}
+
+void Pause()
+{
+
+}
+
+void ChoosePlayer()
+{
+
+}
+
+void Won()
+{
+
+}
+
+void Lost()
+{
+
+}
+
+void ClearExit()
+{
+
+}
+
+
+
+
+
+
 void main()
 {
-	int GameState;
+
+	Init();
+
+	while (GameState != Clear_For_Exit)
+	{
+		HandleEvent();
+		switch (GameState)
+		{
+		case Start_Menu:
+			Start();
+			break;
+		case Player_Menu:
+			ChoosePlayer();
+			break;
+		case Play_Mode:
+			Play();
+			break;
+		case Pause_Menu:
+			Pause();
+			break;
+		case Won_Menu:
+			Won();
+			break;
+		case Lost_Menu:
+			Lost();
+			break;
+		}
+		G_Update();
+	}
+	ClearExit();
 }
