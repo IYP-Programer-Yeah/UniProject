@@ -80,7 +80,48 @@ struct Animation
 
 struct Background
 {
-	Animation Pic;
+	Animation *Pic;
+};
+
+struct MovingBackground
+{
+	float v;
+	G_Rect Dst;
+
+	G_Rect TempDst, TempSrc;
+
+	int PausedPosition;
+
+	bool Playing;
+
+	Uint32 StartTime;
+
+	Animation *Pic;
+
+	bool FirstHalf;
+
+	MovingBackground()
+	{
+		PausedPosition = 0;
+		Playing = false;
+		FirstHalf = false;
+	}
+
+	void Play()
+	{
+		StartTime = G_GetTicks();
+		Playing = true;
+	}
+	void Pause()
+	{
+		PausedPosition += Playing ? int(v*(G_GetTicks() - StartTime)) % Pic->Src[0].w : 0;
+		Playing = false;
+	}
+	void Stop()
+	{
+		PausedPosition = 0;
+		Playing = false;
+	}
 };
 
 struct Player
@@ -174,19 +215,76 @@ struct drawable
 
 	drawable(Background &inp)
 	{
-		if (inp.Pic.StopFrame != -2)
+		if (inp.Pic[0].StopFrame != -2)
 		{
-			if (inp.Pic.StopFrame == -1)
-				Src = &inp.Pic.Src[((G_GetTicks() - inp.Pic.StartTime) / inp.Pic.FrameDuration + inp.Pic.PausedFrame) % inp.Pic.FrameCount];
+			if (inp.Pic[0].StopFrame == -1)
+				Src = &inp.Pic[0].Src[((G_GetTicks() - inp.Pic[0].StartTime) / inp.Pic[0].FrameDuration + inp.Pic[0].PausedFrame) % inp.Pic[0].FrameCount];
 			else
-				Src = &inp.Pic.Src[inp.Pic.PausedFrame];
+				Src = &inp.Pic[0].Src[inp.Pic[0].PausedFrame];
 			Dst = NULL;
-			Texture = inp.Pic.Texture;
+			Texture = inp.Pic[0].Texture;
 		}
 		else
 			Texture = NULL;
 	}
+	drawable(MovingBackground &inp)
+	{
+		if (inp.Pic[0].StopFrame != -2)
+		{
+			if (!inp.FirstHalf)
+			{
+				if (inp.Pic[0].StopFrame == -1)
+					inp.TempSrc = inp.Pic[0].Src[((G_GetTicks() - inp.Pic[0].StartTime) / inp.Pic[0].FrameDuration + inp.Pic[0].PausedFrame) % inp.Pic[0].FrameCount];
+				else
+					inp.TempSrc = inp.Pic[0].Src[inp.Pic[0].PausedFrame];
 
+				Src = &inp.TempSrc;
+
+				inp.TempDst = inp.Dst;
+				Dst = &inp.TempDst;
+
+				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
+				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
+
+				int CurrentPositionDst = (CurrentPositon*Dst->w) / Src->w;
+
+				Src->w -= CurrentPositon;
+
+				Dst->x += CurrentPositionDst;
+				Dst->w -= CurrentPositionDst;
+
+				Texture = inp.Pic[0].Texture;
+			}
+			else
+			{
+				if (inp.Pic[0].StopFrame == -1)
+					inp.TempSrc = inp.Pic[0].Src[((G_GetTicks() - inp.Pic[0].StartTime) / inp.Pic[0].FrameDuration + inp.Pic[0].PausedFrame) % inp.Pic[0].FrameCount];
+				else
+					inp.TempSrc = inp.Pic[0].Src[inp.Pic[0].PausedFrame];
+
+				Src = &inp.TempSrc;
+
+				inp.TempDst = inp.Dst;
+				Dst = &inp.TempDst;
+
+				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
+				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
+
+				int CurrentPositionDst = (CurrentPositon*Dst->w) / Src->w;
+
+				Src->x += Src->w - CurrentPositon;
+				Src->w = CurrentPositon;
+
+				Dst->w = CurrentPositionDst;
+
+				Texture = inp.Pic[0].Texture;
+			}
+
+			inp.FirstHalf = !inp.FirstHalf;
+		}
+		else
+			Texture = NULL;
+	}
 	drawable(Player &inp)
 	{
 		inp.Pos.x = int(inp.x);
@@ -260,6 +358,12 @@ Animation TheGuyAnim;
 Player TheGirl;
 Animation TheGirlAnim;
 
+Background StartMenuBCK;
+Animation StartMenuBCKAnim;
+
+MovingBackground GameBCK;
+Animation GameBCKAnim;
+
 
 void draw(drawable inp)
 {
@@ -274,7 +378,23 @@ void draw(drawable inp)
 
 void load()
 {
-	TheGuyAnim.load("Pics\\body.png", 8, 100, 0, 0, 304, 60);
+	StartMenuBCKAnim.load("Pics\\home_bg.png", 1, 100, 0, 0, 511, 307);
+	StartMenuBCK.Pic = &StartMenuBCKAnim;
+
+	GameBCKAnim.load("Pics\\changjing4.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCK.Pic = &GameBCKAnim;
+
+	GameBCK.v = 0.1;
+	GameBCK.Play();
+
+	GameBCK.Dst.x = -100;
+	GameBCK.Dst.y = 0;
+	GameBCK.Dst.w = 1200;
+	GameBCK.Dst.h = 600;
+
+
+
+	TheGuyAnim.load("Pics\\body.png", 8, 200, 0, 0, 304, 60);
 	TheGuy.Anim = &TheGuyAnim;
 
 	TheGuy.x = 0;
@@ -284,7 +404,7 @@ void load()
 
 	TheGuy.Right = true;
 
-	TheGirlAnim.load("Pics\\f_body.png", 8, 100, 0, 0, 320, 60);
+	TheGirlAnim.load("Pics\\f_body.png", 8, 200, 0, 0, 320, 60);
 	TheGirl.Anim = &TheGirlAnim;
 
 	TheGirl.x = 100;
@@ -332,8 +452,9 @@ void HandleEvent()
 
 void Start()
 {
-	draw(TheGuy);
-	draw(TheGirl);
+	draw(StartMenuBCK);
+	draw(GameBCK);
+	draw(GameBCK);
 }
 
 void Play()
