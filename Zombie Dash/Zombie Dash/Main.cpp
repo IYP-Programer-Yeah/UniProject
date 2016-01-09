@@ -161,9 +161,9 @@ struct Button
 			IsOn = true;
 		if (IsOn&&Event == G_MOUSEBUTTONDOWN&&G_Mouse == G_BUTTON_LEFT)
 			Pressed = true;
-		if (IsOn&&Event == G_MOUSEBUTTONUP&&G_Mouse == G_BUTTON_LEFT)
+		if (Event == G_MOUSEBUTTONUP&&G_Mouse == G_BUTTON_LEFT)
 		{
-			if (Pressed)
+			if (Pressed&&IsOn)
 				Puls = true;
 			Pressed = false;
 		}
@@ -197,6 +197,17 @@ struct CheckBox
 				Checked = !Checked;
 			}
 		}
+	}
+};
+
+struct Pic
+{
+	G_Rect Dst;
+	Animation *Anim;
+	SDL_RendererFlip Flip;
+	Pic()
+	{
+		Flip = SDL_FLIP_NONE;
 	}
 };
 
@@ -246,7 +257,7 @@ struct drawable
 				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
 				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
 
-				int CurrentPositionDst = (CurrentPositon*Dst->w) / Src->w;
+				int CurrentPositionDst = int(floor((CurrentPositon*Dst->w) / Src->w));
 
 				Src->w -= CurrentPositon;
 
@@ -270,7 +281,7 @@ struct drawable
 				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
 				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
 
-				int CurrentPositionDst = (CurrentPositon*Dst->w) / Src->w;
+				int CurrentPositionDst = int(ceil((CurrentPositon*Dst->w) / Src->w));
 
 				Src->x += Src->w - CurrentPositon;
 				Src->w = CurrentPositon;
@@ -349,13 +360,27 @@ struct drawable
 		else
 			Texture = NULL;
 	}
+	drawable(Pic &inp)
+	{
+		Animation *Anim= inp.Anim;
+
+		if (Anim[0].StopFrame != -2)
+		{
+			if (Anim[0].StopFrame == -1)
+				Src = &Anim[0].Src[((G_GetTicks() - Anim[0].StartTime) / Anim[0].FrameDuration + Anim[0].PausedFrame) % Anim[0].FrameCount];
+			else
+				Src = &Anim[0].Src[Anim[0].PausedFrame];
+			Dst = &inp.Dst;
+			Texture = Anim[0].Texture;
+			Flip = inp.Flip;
+		}
+		else
+			Texture = NULL;
+	}
 };
 
-
-Player TheGuy;
+Player ThePlayer;
 Animation TheGuyAnim;
-
-Player TheGirl;
 Animation TheGirlAnim;
 
 Background StartMenuBCK;
@@ -364,6 +389,41 @@ Animation StartMenuBCKAnim;
 MovingBackground GameBCK;
 Animation GameBCKAnim;
 
+Button StartButton;
+Animation StartButtonAnim;
+Animation StartButtonAnimPressed;
+
+Pic GuyInStartMenu;
+Animation GuyInStartMenuAnim;
+
+Pic LogoInStartMenu;
+Animation LogoInStartMenuAnim;
+
+CheckBox Sound;
+Animation SoundOn;
+Animation SoundOff;
+
+CheckBox Music;
+Animation MusicOn;
+Animation MusicOff;
+
+Background ChoosePlayerBCK;
+Animation ChoosePlayerBCKAnim;
+
+CheckBox GirlSelection;
+CheckBox BoySelection;
+Animation GirlChosen;
+Animation GirlNotChosen;
+Animation BoyChosen;
+Animation BoyNotChosen;
+
+Button BackBtnPlayerSelection;
+Animation BackBtnPlayerSelectionAnim;
+Animation BackBtnPlayerSelectionAnimPressed;
+
+Button PlayBtnPlayerSelection;
+Animation PlayBtnPlayerSelectionAnim;
+Animation PlayBtnPlayerSelectionAnimPressed;
 
 void draw(drawable inp)
 {
@@ -392,27 +452,104 @@ void load()
 	GameBCK.Dst.w = 1200;
 	GameBCK.Dst.h = 600;
 
+	StartButtonAnim.load("Pics\\menu.png", 2, 100, 0, 0, 600, 100);
+	StartButtonAnimPressed.load("Pics\\menu.png", 1, 100, 0, 0, 300, 100);
+
+	StartButtonAnim.play();
+
+	StartButton.States[0] = &StartButtonAnim;
+	StartButton.States[1] = &StartButtonAnim;
+	StartButton.States[2] = &StartButtonAnimPressed;
+
+	StartButton.Dst.w = 300;
+	StartButton.Dst.h = 100;
+	StartButton.Dst.x = 350;
+	StartButton.Dst.y = 450;
+
+	GuyInStartMenuAnim.load("Pics\\man.png", 1, 100, 0, 0, 182, 251);
+	GuyInStartMenu.Anim = &GuyInStartMenuAnim;
+	GuyInStartMenu.Dst.w = 182*1.25;
+	GuyInStartMenu.Dst.h = 251*1.25;
+	GuyInStartMenu.Dst.x = 659;
+	GuyInStartMenu.Dst.y = 200;
+
+	LogoInStartMenuAnim.load("Pics\\logo.png", 1, 100, 0, 0, 511, 228);
+	LogoInStartMenu.Anim = &LogoInStartMenuAnim;
+	LogoInStartMenu.Dst.w = 511*1.25;
+	LogoInStartMenu.Dst.h = 228*1.25;
+	LogoInStartMenu.Dst.x = 175;
+	LogoInStartMenu.Dst.y = 100;
+
+	SoundOn.load("pics\\SoundOn.png", 1, 100, 0, 0, 55, 55);
+	SoundOff.load("pics\\SoundOff.png", 1, 100, 0, 0, 55, 55);
+	Sound.States[0] = &SoundOn;
+	Sound.States[1] = &SoundOff;
+	Sound.Dst.w = 55 * 1.25;
+	Sound.Dst.h = 55 * 1.25;
+	Sound.Dst.x = 920;
+	Sound.Dst.y = 520;
+
+	MusicOn.load("pics\\MusicOn.png", 1, 100, 0, 0, 55, 55);
+	MusicOff.load("pics\\MusicOff.png", 1, 100, 0, 0, 55, 55);
+	Music.States[0] = &MusicOn;
+	Music.States[1] = &MusicOff;
+	Music.Dst.w = 55 * 1.25;
+	Music.Dst.h = 55 * 1.25;
+	Music.Dst.x = 830;
+	Music.Dst.y = 520;
+
+	BoyChosen.load("Pics\\boybtn.png", 1, 100, 0, 0, 274, 274);
+	BoyNotChosen.load("Pics\\boybtn.png", 1, 100, 274, 0, 274, 274);
+	BoySelection.States[0] = &BoyChosen;
+	BoySelection.States[1] = &BoyNotChosen;
+	BoySelection.Dst.w = 274 * 1.25;
+	BoySelection.Dst.h = 274 * 1.25;
+	BoySelection.Dst.x = 575;
+	BoySelection.Dst.y = 100;
 
 
-	TheGuyAnim.load("Pics\\body.png", 8, 200, 0, 0, 304, 60);
-	TheGuy.Anim = &TheGuyAnim;
+	GirlChosen.load("Pics\\girlbtn.png", 1, 100, 0, 0, 274, 274);
+	GirlNotChosen.load("Pics\\girlbtn.png", 1, 100, 274, 0, 274, 274);
+	GirlSelection.States[0] = &GirlChosen;
+	GirlSelection.States[1] = &GirlNotChosen;
+	GirlSelection.Dst.w = 274 * 1.25;
+	GirlSelection.Dst.h = 274 * 1.25;
+	GirlSelection.Dst.x = 100;
+	GirlSelection.Dst.y = 100;
 
-	TheGuy.x = 0;
-	TheGuy.y = 0;
-	TheGuy.Pos.w = 100;
-	TheGuy.Pos.h = 100;
+	ChoosePlayerBCKAnim.load("Pics\\shop_bg.jpg", 1, 100, 0, 0, 800, 480);
+	ChoosePlayerBCK.Pic = &ChoosePlayerBCKAnim;
 
-	TheGuy.Right = true;
+	BackBtnPlayerSelectionAnimPressed.load("Pics\\BackBtnPressed.png", 1, 100, 0, 0, 130, 100);
+	BackBtnPlayerSelectionAnim.load("Pics\\BackBtn.png", 1, 100, 0, 0, 130, 100);
+	BackBtnPlayerSelection.States[0] = &BackBtnPlayerSelectionAnim;
+	BackBtnPlayerSelection.States[1] = &BackBtnPlayerSelectionAnim;
+	BackBtnPlayerSelection.States[2] = &BackBtnPlayerSelectionAnimPressed;
+	BackBtnPlayerSelection.Dst.w = 130 * 1.25;
+	BackBtnPlayerSelection.Dst.h = 100 * 1.25;
+	BackBtnPlayerSelection.Dst.x = 50;
+	BackBtnPlayerSelection.Dst.y = 450;
 
-	TheGirlAnim.load("Pics\\f_body.png", 8, 200, 0, 0, 320, 60);
-	TheGirl.Anim = &TheGirlAnim;
+	PlayBtnPlayerSelectionAnimPressed.load("Pics\\PlayBtnPressed.png", 1, 100, 0, 0, 120, 100);
+	PlayBtnPlayerSelectionAnim.load("Pics\\PlayBtn.png", 1, 100, 0, 0, 120, 100);
+	PlayBtnPlayerSelection.States[0] = &PlayBtnPlayerSelectionAnim;
+	PlayBtnPlayerSelection.States[1] = &PlayBtnPlayerSelectionAnim;
+	PlayBtnPlayerSelection.States[2] = &PlayBtnPlayerSelectionAnimPressed;
+	PlayBtnPlayerSelection.Dst.w = 120 * 1.25;
+	PlayBtnPlayerSelection.Dst.h = 100 * 1.25;
+	PlayBtnPlayerSelection.Dst.x = 800;
+	PlayBtnPlayerSelection.Dst.y = 450;
 
-	TheGirl.x = 100;
-	TheGirl.y = 0;
-	TheGirl.Pos.w = 100;
-	TheGirl.Pos.h = 100;
+	TheGuyAnim.load("Pics\\body.png", 8, 100, 0, 0, 304, 60);
+	TheGirlAnim.load("Pics\\f_body.png", 8, 100, 0, 0, 320, 60);
+	ThePlayer.Anim = &TheGuyAnim;
 
-	TheGirl.Right = true;
+	ThePlayer.x = 0;
+	ThePlayer.y = 0;
+	ThePlayer.Pos.w = 100;
+	ThePlayer.Pos.h = 100;
+
+	ThePlayer.Right = true;
 
 }
 
@@ -428,11 +565,6 @@ void Init()
 	G_CreateWindow("Zombie Dash", WinPos, 0, 0, 100);
 
 	load();
-
-
-
-	TheGuy.Anim->play();
-	TheGirl.Anim->play();
 
 }
 
@@ -453,13 +585,26 @@ void HandleEvent()
 void Start()
 {
 	draw(StartMenuBCK);
-	draw(GameBCK);
-	draw(GameBCK);
+	draw(StartButton);
+	draw(LogoInStartMenu);
+	draw(GuyInStartMenu);
+	draw(Sound);
+	draw(Music);
+
+	StartButton.Update();
+	Sound.Update();
+	Music.Update();
+
+	if (StartButton.Puls)
+		GameState = Player_Menu;
 }
 
 void Play()
 {
-	
+	draw(GameBCK);
+	draw(GameBCK);
+	draw(ThePlayer);
+
 }
 
 void Pause()
@@ -469,7 +614,42 @@ void Pause()
 
 void ChoosePlayer()
 {
+	draw(ChoosePlayerBCK);
+	draw(GirlSelection);
+	draw(BoySelection);
+	draw(PlayBtnPlayerSelection);
+	draw(BackBtnPlayerSelection);
 
+	BackBtnPlayerSelection.Update();
+	PlayBtnPlayerSelection.Update();
+
+	if (!GirlSelection.Checked)
+	{
+		GirlSelection.Update();
+		BoySelection.Checked = !GirlSelection.Checked;
+	}
+	if (!BoySelection.Checked)
+	{
+		BoySelection.Update();
+		GirlSelection.Checked = !BoySelection.Checked;
+	}
+
+	if (BackBtnPlayerSelection.Puls)
+	{
+		GameState = Start_Menu;
+		GirlSelection.Checked = false;
+	}
+	if (PlayBtnPlayerSelection.Puls)
+	{
+		if (BoySelection.Checked)
+			ThePlayer.Anim = &TheGuyAnim;
+		if (GirlSelection.Checked)
+			ThePlayer.Anim = &TheGirlAnim;
+		ThePlayer.Anim->play();
+		GameState = Play_Mode;
+		GirlSelection.Checked = false;
+
+	}
 }
 
 void Won()
