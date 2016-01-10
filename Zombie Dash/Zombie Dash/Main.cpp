@@ -557,7 +557,7 @@ Background StartMenuBCK;
 Animation StartMenuBCKAnim;
 
 MovingBackground GameBCK;
-Animation GameBCKAnim;
+Animation GameBCKAnim[5];
 
 Button StartButton;
 Animation StartButtonAnim;
@@ -614,7 +614,7 @@ Animation QuitBtnPauseAnim;
 Animation QuitBtnPauseAnimPressed;
 
 Map MovingMap;
-Animation TileAnims[3];
+Animation TileAnims[5][3];
 
 int PlayerHealth = 3;
 
@@ -653,16 +653,6 @@ void load()
 	StartMenuBCKAnim.load("Pics\\home_bg.png", 1, 100, 0, 0, 511, 307);
 	StartMenuBCK.Pic = &StartMenuBCKAnim;
 
-	GameBCKAnim.load("Pics\\changjing4.jpg", 1, 100, 0, 0, 900, 505);
-	GameBCK.Pic = &GameBCKAnim;
-
-	GameBCK.v = 0.05;
-
-	GameBCK.Dst.x = -100;
-	GameBCK.Dst.y = 0;
-	GameBCK.Dst.w = 1200;
-	GameBCK.Dst.h = 600;
-
 	StartButtonAnim.load("Pics\\menu.png", 2, 100, 0, 0, 600, 100);
 	StartButtonAnimPressed.load("Pics\\menu.png", 1, 100, 0, 0, 300, 100);
 
@@ -693,8 +683,8 @@ void load()
 
 	SoundOn.load("pics\\SoundOn.png", 1, 100, 0, 0, 55, 55);
 	SoundOff.load("pics\\SoundOff.png", 1, 100, 0, 0, 55, 55);
-	Sound.States[0] = &SoundOn;
-	Sound.States[1] = &SoundOff;
+	Sound.States[0] = &SoundOff;
+	Sound.States[1] = &SoundOn;
 	Sound.Dst.w = 55 * 1.25;
 	Sound.Dst.h = 55 * 1.25;
 	Sound.Dst.x = 920;
@@ -702,8 +692,8 @@ void load()
 
 	MusicOn.load("pics\\MusicOn.png", 1, 100, 0, 0, 55, 55);
 	MusicOff.load("pics\\MusicOff.png", 1, 100, 0, 0, 55, 55);
-	Music.States[0] = &MusicOn;
-	Music.States[1] = &MusicOff;
+	Music.States[0] = &MusicOff;
+	Music.States[1] = &MusicOn;
 	Music.Dst.w = 55 * 1.25;
 	Music.Dst.h = 55 * 1.25;
 	Music.Dst.x = 830;
@@ -805,13 +795,46 @@ void load()
 	QuitBtnPause.Dst.w = 200 * 1.25;
 	QuitBtnPause.Dst.h = 110 * 1.25;
 
-	TileAnims[0].load("Pics\\jadde.png", 1, 100, 0, 0, 150, 278);
-	TileAnims[1].load("Pics\\L_darre.png", 1, 100, 0, 0, 150, 278);
-	TileAnims[2].load("Pics\\shib.png", 1, 100, 0, 0, 150, 374);
-	MovingMap.TileStyles[0].Anim = &TileAnims[0];
-	MovingMap.TileStyles[1].Anim = &TileAnims[1];
-	MovingMap.TileStyles[2].Anim = &TileAnims[2];
-	
+	GameBCKAnim[0].load("Pics\\Background1.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[1].load("Pics\\Background2.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[2].load("Pics\\Background3.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[3].load("Pics\\Background4.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[4].load("Pics\\Background5.jpg", 1, 100, 0, 0, 900, 505);
+
+	int i = rand() % 5;
+	GameBCK.Pic = &GameBCKAnim[i];
+
+	GameBCK.v = 0.05;
+
+	GameBCK.Dst.x = -100;
+	GameBCK.Dst.y = 0;
+	GameBCK.Dst.w = 1200;
+	GameBCK.Dst.h = 600;
+
+	TileAnims[0][0].load("Pics\\Road1.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[0][1].load("Pics\\Cliff1.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[0][2].load("Pics\\Slope1.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[1][0].load("Pics\\Road2.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[1][1].load("Pics\\Cliff2.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[1][2].load("Pics\\Slope2.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[2][0].load("Pics\\Road3.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[2][1].load("Pics\\Cliff3.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[2][2].load("Pics\\Slope3.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[3][0].load("Pics\\Road4.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[3][1].load("Pics\\Cliff4.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[3][2].load("Pics\\Slope4.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[4][0].load("Pics\\Road5.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[4][1].load("Pics\\Cliff5.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[4][2].load("Pics\\Slope5.png", 1, 100, 0, 0, 150, 374);
+
+	MovingMap.TileStyles[0].Anim = &TileAnims[i][0];
+	MovingMap.TileStyles[1].Anim = &TileAnims[i][1];
+	MovingMap.TileStyles[2].Anim = &TileAnims[i][2];
+
 	MovingMap.v = 0.2;
 }
 
@@ -868,6 +891,12 @@ void ResetGame()
 	ThePlayer.y = 500 - MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
 
 	PlayerHealth = 3;
+
+	int i = rand() % 5;
+	GameBCK.Pic = &GameBCKAnim[i];
+	MovingMap.TileStyles[0].Anim = &TileAnims[i][0];
+	MovingMap.TileStyles[1].Anim = &TileAnims[i][1];
+	MovingMap.TileStyles[2].Anim = &TileAnims[i][2];
 
 }
 
