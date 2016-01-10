@@ -15,6 +15,12 @@
 #define Cliff			2
 #define Road			3
 
+#define MaxNumberOfZombies 2
+
+#define ZombieSpeed 0.05f
+
+#define Gravity 0.001f
+
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
 
@@ -553,6 +559,9 @@ Player ThePlayer;
 Animation TheGuyAnim;
 Animation TheGirlAnim;
 
+Player Zombies[MaxNumberOfZombies];
+Animation ZombieAnim;
+
 Background StartMenuBCK;
 Animation StartMenuBCKAnim;
 
@@ -623,8 +632,11 @@ void DoPhysics(Player *P)
 	P->IsOnFloor = false;
 
 	float y = P->y;
+
 	P->update_pos();
-	int h = MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
+
+	int h = MovingMap.GetY(P->x + P->Pos.w / 2);
+
 	if (h != 0)
 	{
 		int FloorY = 550 - h;
@@ -635,6 +647,51 @@ void DoPhysics(Player *P)
 			P->Vy = 0;
 		}
 	}
+}
+
+float FindCollisionX(float x1, float y1, float x2, float y2, float y)
+{
+	float Ratio = float(y - y1) / float(y2 - y1);
+	return Ratio*x2 + (1.0f - Ratio)*x1;
+}
+
+void DoZombiePhysics(Player *P)
+{
+	if (P->IsOnFloor)
+		P->Vx = P->Right ? -ZombieSpeed : ZombieSpeed;
+
+	P->IsOnFloor = false;
+
+	float y = P->y;
+	float x = P->x + MovingMap.v*P->dt;
+
+	if (GameBCK.Playing)
+		P->Vx -= MovingMap.v;
+	P->update_pos();
+
+	int h = MovingMap.GetY(P->x + P->Pos.w / 2);
+
+	if (h != 0)
+	{
+		int FloorY = 550 - h;
+
+		float CollisionX = FindCollisionX(x, y, P->x, P->y, FloorY);
+		if ((x - CollisionX) / (x - P->x) < 1.001)
+		{
+			P->IsOnFloor = true;
+			P->y = FloorY;
+			P->Vy = 0;
+			if (FloorY < round(y))
+			{
+				P->x -= (P->Right ? -ZombieSpeed : ZombieSpeed)*P->dt;
+				P->Right = !P->Right;
+			}
+		}
+	}
+
+	if (GameBCK.Playing)
+		P->Vx += MovingMap.v;
+
 }
 
 void draw(drawable inp)
@@ -766,8 +823,20 @@ void load()
 
 	ThePlayer.x = 0;
 	ThePlayer.y = 500;
-	ThePlayer.Pos.w = 100;
+	ThePlayer.Pos.w = 70;
 	ThePlayer.Pos.h = 100;
+
+	ZombieAnim.load("Pics\\zombie.png", 8, 100, 0, 0, 320, 64);
+
+	for (int i = 0; i < MaxNumberOfZombies; i++)
+	{
+		Zombies[i].Anim = &ZombieAnim;
+		Zombies[i].x = 0;
+		Zombies[i].y = 700;
+		Zombies[i].Pos.w = 70;
+		Zombies[i].Pos.h = 100;
+	}
+	
 
 	ShadeAnim.load("Pics\\Shade.png", 1, 100, 0, 0, 10, 10);
 	Shade.Pic = &ShadeAnim;
@@ -862,13 +931,25 @@ void ResetGame()
 	ThePlayer.Vx = 0;
 	ThePlayer.Vy = 0;
 	ThePlayer.Ax = 0;
-	ThePlayer.Ay = 0.001;
+	ThePlayer.Ay = Gravity;
 
 	ThePlayer.x = 50;
 	ThePlayer.y = 500 - MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
 
 	PlayerHealth = 3;
 
+	ZombieAnim.stop();
+	ZombieAnim.play();
+
+	for (int i = 0; i < MaxNumberOfZombies; i++)
+	{
+		Zombies[i].LastTick = G_GetTicks();
+		Zombies[i].y = 700;
+		Zombies[i].Vx = 0;
+		Zombies[i].Vy = 0;
+		Zombies[i].Ax = 0;
+		Zombies[i].Ay = Gravity;
+	}
 }
 
 void Start()
@@ -901,6 +982,24 @@ void Play()
 
 	DoPhysics(&ThePlayer);
 
+
+	for (int i = 0; i < MaxNumberOfZombies; i++)
+	{
+		if (Zombies[i].y > 600 || (Zombies[i].x + Zombies[i].Pos.w) < 0 || Zombies[i].x > 1000)
+		{
+			if ((rand() % 200) > 190)
+			{
+				Zombies[i].x = rand() % 700 + 150;
+				while (MovingMap.GetY(Zombies[i].x + Zombies[i].Pos.w / 2) == 0)
+					Zombies[i].x = rand() % 700 + 150;
+				Zombies[i].y = 450 - MovingMap.GetY(Zombies[i].x + Zombies[i].Pos.w / 2);
+				Zombies[i].Right = (rand() % 6) > 2;
+			}
+		}
+		draw(Zombies[i]);
+		DoZombiePhysics(&Zombies[i]);
+	}
+
 	if (Event == G_KEYDOWN && G_Keyboard == GK_SPACE&&ThePlayer.IsOnFloor)
 	{
 		ThePlayer.Vy = -1;
@@ -922,7 +1021,7 @@ void Play()
 	if (PlayerHealth == 0)
 	{
 		GameState = Lost_Menu;
-		ResetGame();
+		GameBCK.Pause();
 	}
 }
 
