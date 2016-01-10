@@ -137,8 +137,16 @@ struct Player
 	G_Rect Pos;
 	Animation *Anim;
 	bool Right;
-	void update_pos(int dt)
+
+	int LastTick;
+	int dt;
+
+	bool IsOnFloor;
+
+	void update_pos()
 	{
+		dt = G_GetTicks() - LastTick;
+		LastTick = G_GetTicks();
 		Vx += float(dt)*Ax;
 		Vy += float(dt)*Ay;
 
@@ -451,7 +459,7 @@ struct Map
 			{
 			case Road:
 				TileStyles[0].Dst.w = int(150 * 1.25);
-				TileStyles[0].Dst.h = 278 * 1.25;
+				TileStyles[0].Dst.h = int(278 * 1.25);
 				TileStyles[0].Dst.y = 600 - Tiles[i].h;
 				for (int j = 0; j < 3; j++)
 				{
@@ -462,14 +470,14 @@ struct Map
 				break;
 			case Cliff:
 				TileStyles[1].Dst.w = int(150 * 1.25);
-				TileStyles[1].Dst.h = 278 * 1.25;
+				TileStyles[1].Dst.h = int(278 * 1.25);
 				TileStyles[1].Dst.y = 600 - Tiles[i].h;
 				TileStyles[1].Dst.x = Tiles[i].x;
 				TileStyles[1].Flip = SDL_FLIP_NONE;
 				draw(TileStyles[1]);
 
 				TileStyles[1].Dst.w = int(150 * 1.25);
-				TileStyles[1].Dst.h = 278 * 1.25;
+				TileStyles[1].Dst.h = int(278 * 1.25);
 				TileStyles[1].Dst.y = 600 - Tiles[i + 1].h;
 				TileStyles[1].Dst.x = Tiles[i].x + int(150 * 1.25)*2;
 				TileStyles[1].Flip = SDL_FLIP_HORIZONTAL;
@@ -478,21 +486,21 @@ struct Map
 				break;
 			case Slope:
 				TileStyles[0].Dst.w = int(150 * 1.25);
-				TileStyles[0].Dst.h = 278 * 1.25;
+				TileStyles[0].Dst.h = int(278 * 1.25);
 				TileStyles[0].Dst.y = 600 - Tiles[i].h;
 				TileStyles[0].Dst.x = Tiles[i].x;
 				TileStyles[0].Flip = SDL_FLIP_NONE;
 				draw(TileStyles[0]);
 
 				TileStyles[2].Dst.w = int(150 * 1.25);
-				TileStyles[2].Dst.h = 374 * 1.25;
+				TileStyles[2].Dst.h = int(374 * 1.25);
 				TileStyles[2].Dst.y = 600 - Tiles[i].h;
 				TileStyles[2].Dst.x = Tiles[i].x + int(150 * 1.25);
 				TileStyles[2].Flip = SDL_FLIP_NONE;
 				draw(TileStyles[2]);
 
 				TileStyles[0].Dst.w = int(150 * 1.25);
-				TileStyles[0].Dst.h = 278 * 1.25;
+				TileStyles[0].Dst.h = int(278 * 1.25);
 				TileStyles[0].Dst.y = 600 - Tiles[i + 1].h;
 				TileStyles[0].Dst.x = Tiles[i].x + int(150 * 1.25) * 2;
 				TileStyles[0].Flip = SDL_FLIP_NONE;
@@ -608,6 +616,26 @@ Animation QuitBtnPauseAnimPressed;
 Map MovingMap;
 Animation TileAnims[3];
 
+int PlayerHealth = 3;
+
+void DoPhysics(Player *P)
+{
+	P->IsOnFloor = false;
+
+	float y = P->y;
+	P->update_pos();
+	int h = MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
+	if (h != 0)
+	{
+		int FloorY = 550 - h;
+		if (FloorY <= P->y && FloorY >= y)
+		{
+			P->IsOnFloor = true;
+			P->y = FloorY;
+			P->Vy = 0;
+		}
+	}
+}
 
 void draw(drawable inp)
 {
@@ -829,6 +857,18 @@ void ResetGame()
 	MovingMap.Reset();
 
 	ThePlayer.Right = true;
+	ThePlayer.LastTick = G_GetTicks();
+
+	ThePlayer.Vx = 0;
+	ThePlayer.Vy = 0;
+	ThePlayer.Ax = 0;
+	ThePlayer.Ay = 0.001;
+
+	ThePlayer.x = 50;
+	ThePlayer.y = 500 - MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
+
+	PlayerHealth = 3;
+
 }
 
 void Start()
@@ -858,7 +898,16 @@ void Play()
 
 	MovingMap.Update();
 
-	ThePlayer.y = 550 - MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
+
+	DoPhysics(&ThePlayer);
+
+	if (Event == G_KEYDOWN && G_Keyboard == GK_SPACE&&ThePlayer.IsOnFloor)
+	{
+		ThePlayer.Vy = -1;
+		ThePlayer.y -= 20;
+	}
+
+	
 
 	PauseBtn.Update();
 	if (PauseBtn.Puls)
@@ -873,14 +922,15 @@ void Pause()
 {
 	draw(GameBCK);
 	draw(GameBCK);
-	draw(ThePlayer);
 	MovingMap.Draw();
+	draw(ThePlayer);
 	draw(Shade);
 	draw(ResumeBtnPause);
 	draw(RetryBtnPause);
 	draw(QuitBtnPause);
 
 	MovingMap.LastTick = G_GetTicks();
+	ThePlayer.LastTick = G_GetTicks();
 
 	ResumeBtnPause.Update();
 	RetryBtnPause.Update();
