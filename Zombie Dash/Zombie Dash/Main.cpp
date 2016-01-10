@@ -1,4 +1,5 @@
 #include "Genio.h"
+#include <time.h>
 
 #undef main
 
@@ -9,6 +10,10 @@
 #define Lost_Menu		5
 #define Player_Menu		6
 #define Clear_For_Exit	7
+
+#define Slope			1
+#define Cliff			2
+#define Road			3
 
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
@@ -128,11 +133,15 @@ struct Player
 {
 	float x, y;
 	float Vx, Vy;
+	float Ax, Ay;
 	G_Rect Pos;
 	Animation *Anim;
 	bool Right;
 	void update_pos(int dt)
 	{
+		Vx += float(dt)*Ax;
+		Vy += float(dt)*Ay;
+
 		x += float(dt)*Vx;
 		y += float(dt)*Vy;
 	}
@@ -140,7 +149,6 @@ struct Player
 
 struct Button
 {
-	int X, Y;
 	G_Rect Dst;
 	Animation *States[3];
 	bool IsOn;
@@ -257,7 +265,7 @@ struct drawable
 				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
 				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
 
-				int CurrentPositionDst = int(floor((CurrentPositon*Dst->w) / Src->w));
+				int CurrentPositionDst = int(CurrentPositon*Dst->w / Src->w) - 1;
 
 				Src->w -= CurrentPositon;
 
@@ -281,7 +289,7 @@ struct drawable
 				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
 				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
 
-				int CurrentPositionDst = int(ceil((CurrentPositon*Dst->w) / Src->w));
+				int CurrentPositionDst = int(CurrentPositon*Dst->w / Src->w);
 
 				Src->x += Src->w - CurrentPositon;
 				Src->w = CurrentPositon;
@@ -379,6 +387,160 @@ struct drawable
 	}
 };
 
+struct Tile
+{
+	int h;
+	float x;
+	int Terrain;
+};
+
+void draw(drawable inp);
+
+struct Map
+{
+	Tile Tiles[4];
+	float v;
+	int LastTick;
+
+	Pic TileStyles[3];
+
+	void Reset()
+	{
+		int temp_height = rand() % int(278 * 1.25 - 75) + 75;
+		for (int i = 0; i < 4; i++)
+		{
+			Tiles[i].x = i*int(150 * 1.25) * 3;
+			Tiles[i].h = temp_height;
+			Tiles[i].Terrain = Road;
+		}
+		LastTick = G_GetTicks();
+	}
+
+	void Update()
+	{
+		int dt = G_GetTicks() - LastTick;
+		LastTick = G_GetTicks();
+
+		for (int i = 0; i < 4; i++)
+			Tiles[i].x -= v*float(dt);
+
+		if (Tiles[1].x < 0)
+		{
+			Tiles[0] = Tiles[1];
+			Tiles[1] = Tiles[2];
+			Tiles[2] = Tiles[3];
+			Tiles[3].x = Tiles[2].x + int(150 * 1.25) * 3;
+			Tiles[3].Terrain = rand() % 3 + 1;
+
+			if (Tiles[2].Terrain == Road)
+				Tiles[3].h = Tiles[2].h;
+			else  if (Tiles[2].Terrain == Cliff)
+				Tiles[3].h = rand() % int(278 * 1.25 - 150) + 150;
+			else
+				Tiles[3].h = Tiles[2].h - int(99 * 1.25);
+
+			if (Tiles[3].Terrain == Slope&&Tiles[3].h<int(175 * 1.25))
+				Tiles[3].Terrain = Cliff;
+		}
+	}
+	void Draw()
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			switch (Tiles[i].Terrain)
+			{
+			case Road:
+				TileStyles[0].Dst.w = int(150 * 1.25);
+				TileStyles[0].Dst.h = 278 * 1.25;
+				TileStyles[0].Dst.y = 600 - Tiles[i].h;
+				for (int j = 0; j < 3; j++)
+				{
+					TileStyles[0].Dst.x = Tiles[i].x + int(150 * 1.25)*j;
+					draw(TileStyles[0]);
+				}
+
+				break;
+			case Cliff:
+				TileStyles[1].Dst.w = int(150 * 1.25);
+				TileStyles[1].Dst.h = 278 * 1.25;
+				TileStyles[1].Dst.y = 600 - Tiles[i].h;
+				TileStyles[1].Dst.x = Tiles[i].x;
+				TileStyles[1].Flip = SDL_FLIP_NONE;
+				draw(TileStyles[1]);
+
+				TileStyles[1].Dst.w = int(150 * 1.25);
+				TileStyles[1].Dst.h = 278 * 1.25;
+				TileStyles[1].Dst.y = 600 - Tiles[i + 1].h;
+				TileStyles[1].Dst.x = Tiles[i].x + int(150 * 1.25)*2;
+				TileStyles[1].Flip = SDL_FLIP_HORIZONTAL;
+				draw(TileStyles[1]);
+
+				break;
+			case Slope:
+				TileStyles[0].Dst.w = int(150 * 1.25);
+				TileStyles[0].Dst.h = 278 * 1.25;
+				TileStyles[0].Dst.y = 600 - Tiles[i].h;
+				TileStyles[0].Dst.x = Tiles[i].x;
+				TileStyles[0].Flip = SDL_FLIP_NONE;
+				draw(TileStyles[0]);
+
+				TileStyles[2].Dst.w = int(150 * 1.25);
+				TileStyles[2].Dst.h = 374 * 1.25;
+				TileStyles[2].Dst.y = 600 - Tiles[i].h;
+				TileStyles[2].Dst.x = Tiles[i].x + int(150 * 1.25);
+				TileStyles[2].Flip = SDL_FLIP_NONE;
+				draw(TileStyles[2]);
+
+				TileStyles[0].Dst.w = int(150 * 1.25);
+				TileStyles[0].Dst.h = 278 * 1.25;
+				TileStyles[0].Dst.y = 600 - Tiles[i + 1].h;
+				TileStyles[0].Dst.x = Tiles[i].x + int(150 * 1.25) * 2;
+				TileStyles[0].Flip = SDL_FLIP_NONE;
+				draw(TileStyles[0]);
+				break;
+			}
+		}
+	}
+	int GetY(int X)
+	{
+		for (int i = 0; i < 3; i++)
+			if (int(Tiles[i].x) <= X && (int(Tiles[i].x) + int(150 * 1.25) * 3) >= X)
+			{
+				switch (Tiles[i].Terrain)
+				{
+				case Road:
+					
+					return Tiles[i].h;
+
+					break;
+				case Cliff:
+
+					if (int(Tiles[i].x) <= X && (int(Tiles[i].x) + int(150 * 1.25)) >= X)
+						return Tiles[i].h;
+					else if (int(Tiles[i].x) + int(150 * 1.25) <= X && (int(Tiles[i].x) + int(150 * 1.25) * 2) >= X)
+						return 0;
+					else
+						return Tiles[i + 1].h;
+
+					break;
+				case Slope:
+
+					if (int(Tiles[i].x) <= X && (int(Tiles[i].x) + int(150 * 1.25)) >= X)
+						return Tiles[i].h;
+					else if (int(Tiles[i].x) + int(150 * 1.25) <= X && (int(Tiles[i].x) + int(150 * 1.25) + 55) >= X)
+					{
+						float ratio = float(X - (int(Tiles[i].x) + int(150 * 1.25))) / 55.0f;
+						return  ratio * Tiles[i + 1].h + (1.0f - ratio)* Tiles[i].h;
+					}
+					else
+						return Tiles[i + 1].h;
+					
+					break;
+				}
+			}
+	}
+};
+
 Player ThePlayer;
 Animation TheGuyAnim;
 Animation TheGirlAnim;
@@ -425,6 +587,28 @@ Button PlayBtnPlayerSelection;
 Animation PlayBtnPlayerSelectionAnim;
 Animation PlayBtnPlayerSelectionAnimPressed;
 
+Button PauseBtn;
+Animation PuaseBtnAnim;
+
+Background Shade;
+Animation ShadeAnim;
+
+Button ResumeBtnPause;
+Animation ResumeBtnPauseAnim;
+Animation ResumeBtnPauseAnimPressed;
+
+Button RetryBtnPause;
+Animation RetryBtnPauseAnim;
+Animation RetryBtnPauseAnimPressed;
+
+Button QuitBtnPause;
+Animation QuitBtnPauseAnim;
+Animation QuitBtnPauseAnimPressed;
+
+Map MovingMap;
+Animation TileAnims[3];
+
+
 void draw(drawable inp)
 {
 	if (inp.Texture != NULL)
@@ -444,8 +628,7 @@ void load()
 	GameBCKAnim.load("Pics\\changjing4.jpg", 1, 100, 0, 0, 900, 505);
 	GameBCK.Pic = &GameBCKAnim;
 
-	GameBCK.v = 0.1;
-	GameBCK.Play();
+	GameBCK.v = 0.05;
 
 	GameBCK.Dst.x = -100;
 	GameBCK.Dst.y = 0;
@@ -540,21 +723,74 @@ void load()
 	PlayBtnPlayerSelection.Dst.x = 800;
 	PlayBtnPlayerSelection.Dst.y = 450;
 
+	PuaseBtnAnim.load("Pics\\PauseBtn.png", 1, 100, 0, 0, 45, 35);
+	PauseBtn.States[0] = &PuaseBtnAnim;
+	PauseBtn.States[1] = &PuaseBtnAnim;
+	PauseBtn.States[2] = &PuaseBtnAnim;
+	PauseBtn.Dst.w = 45 * 1.25;
+	PauseBtn.Dst.h = 35 * 1.25;
+	PauseBtn.Dst.x = 10;
+	PauseBtn.Dst.y = 10;
+
 	TheGuyAnim.load("Pics\\body.png", 8, 100, 0, 0, 304, 60);
 	TheGirlAnim.load("Pics\\f_body.png", 8, 100, 0, 0, 320, 60);
 	ThePlayer.Anim = &TheGuyAnim;
 
 	ThePlayer.x = 0;
-	ThePlayer.y = 0;
+	ThePlayer.y = 500;
 	ThePlayer.Pos.w = 100;
 	ThePlayer.Pos.h = 100;
 
-	ThePlayer.Right = true;
+	ShadeAnim.load("Pics\\Shade.png", 1, 100, 0, 0, 10, 10);
+	Shade.Pic = &ShadeAnim;
 
+	ResumeBtnPauseAnim.load("Pics\\Resume.png", 1, 100, 0, 0, 200, 110);
+	ResumeBtnPauseAnimPressed.load("Pics\\ResumePressed.png", 1, 100, 0, 0, 200, 110);
+	ResumeBtnPause.States[0] = &ResumeBtnPauseAnim;
+	ResumeBtnPause.States[1] = &ResumeBtnPauseAnim;
+	ResumeBtnPause.States[2] = &ResumeBtnPauseAnimPressed;
+	
+	ResumeBtnPause.Dst.x = 400;
+	ResumeBtnPause.Dst.y = 75;
+	ResumeBtnPause.Dst.w = 200 * 1.25;
+	ResumeBtnPause.Dst.h = 110 * 1.25;
+
+	RetryBtnPauseAnim.load("Pics\\Retry.png", 1, 100, 0, 0, 200, 110);
+	RetryBtnPauseAnimPressed.load("Pics\\RetryPressed.png", 1, 100, 0, 0, 200, 110);
+	RetryBtnPause.States[0] = &RetryBtnPauseAnim;
+	RetryBtnPause.States[1] = &RetryBtnPauseAnim;
+	RetryBtnPause.States[2] = &RetryBtnPauseAnimPressed;
+
+	RetryBtnPause.Dst.x = 400;
+	RetryBtnPause.Dst.y = 225;
+	RetryBtnPause.Dst.w = 200 * 1.25;
+	RetryBtnPause.Dst.h = 110 * 1.25;
+
+	QuitBtnPauseAnim.load("Pics\\Quit.png", 1, 100, 0, 0, 200, 110);
+	QuitBtnPauseAnimPressed.load("Pics\\QuitPressed.png", 1, 100, 0, 0, 200, 110);
+	QuitBtnPause.States[0] = &QuitBtnPauseAnim;
+	QuitBtnPause.States[1] = &QuitBtnPauseAnim;
+	QuitBtnPause.States[2] = &QuitBtnPauseAnimPressed;
+
+	QuitBtnPause.Dst.x = 400;
+	QuitBtnPause.Dst.y = 375;
+	QuitBtnPause.Dst.w = 200 * 1.25;
+	QuitBtnPause.Dst.h = 110 * 1.25;
+
+	TileAnims[0].load("Pics\\jadde.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[1].load("Pics\\L_darre.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[2].load("Pics\\shib.png", 1, 100, 0, 0, 150, 374);
+	MovingMap.TileStyles[0].Anim = &TileAnims[0];
+	MovingMap.TileStyles[1].Anim = &TileAnims[1];
+	MovingMap.TileStyles[2].Anim = &TileAnims[2];
+	
+	MovingMap.v = 0.2;
 }
 
 void Init()
 {
+	srand(time(0));
+
 	G_Rect WinPos;
 	WinPos.x = WinPos.y = SDL_WINDOWPOS_UNDEFINED;
 	WinPos.w = 1000;
@@ -582,6 +818,19 @@ void HandleEvent()
 
 }
 
+void ResetGame()
+{
+	GameBCK.Stop();
+	GameBCK.Play();
+
+	ThePlayer.Anim->stop();
+	ThePlayer.Anim->play();
+
+	MovingMap.Reset();
+
+	ThePlayer.Right = true;
+}
+
 void Start()
 {
 	draw(StartMenuBCK);
@@ -603,13 +852,56 @@ void Play()
 {
 	draw(GameBCK);
 	draw(GameBCK);
+	draw(PauseBtn);
+	MovingMap.Draw();
 	draw(ThePlayer);
 
+	MovingMap.Update();
+
+	ThePlayer.y = 550 - MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
+
+	PauseBtn.Update();
+	if (PauseBtn.Puls)
+	{
+		GameState = Pause_Menu;
+		GameBCK.Pause();
+		ThePlayer.Anim->pause();
+	}
 }
 
 void Pause()
 {
+	draw(GameBCK);
+	draw(GameBCK);
+	draw(ThePlayer);
+	MovingMap.Draw();
+	draw(Shade);
+	draw(ResumeBtnPause);
+	draw(RetryBtnPause);
+	draw(QuitBtnPause);
 
+	MovingMap.LastTick = G_GetTicks();
+
+	ResumeBtnPause.Update();
+	RetryBtnPause.Update();
+	QuitBtnPause.Update();
+
+	if (ResumeBtnPause.Puls)
+	{
+		GameState = Play_Mode;
+		GameBCK.Play();
+		ThePlayer.Anim->play();
+	}
+	if (RetryBtnPause.Puls)
+	{
+		ResetGame();
+		GameState = Play_Mode;
+	}
+	if (QuitBtnPause.Puls)
+	{
+		ResetGame();
+		GameState = Start_Menu;
+	}
 }
 
 void ChoosePlayer()
@@ -645,10 +937,12 @@ void ChoosePlayer()
 			ThePlayer.Anim = &TheGuyAnim;
 		if (GirlSelection.Checked)
 			ThePlayer.Anim = &TheGirlAnim;
-		ThePlayer.Anim->play();
-		GameState = Play_Mode;
-		GirlSelection.Checked = false;
+		
+		ResetGame();
 
+		GameState = Play_Mode;
+
+		GirlSelection.Checked = false;
 	}
 }
 
