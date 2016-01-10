@@ -904,8 +904,10 @@ void Play()
 	if (Event == G_KEYDOWN && G_Keyboard == GK_SPACE&&ThePlayer.IsOnFloor)
 	{
 		ThePlayer.Vy = -1;
-		ThePlayer.y -= 20;
+		ThePlayer.y -= 1;
 	}
+	if (ThePlayer.y > 600)
+		PlayerHealth = 0;
 
 	
 
@@ -915,6 +917,12 @@ void Play()
 		GameState = Pause_Menu;
 		GameBCK.Pause();
 		ThePlayer.Anim->pause();
+	}
+
+	if (PlayerHealth == 0)
+	{
+		GameState = Lost_Menu;
+		ResetGame();
 	}
 }
 
