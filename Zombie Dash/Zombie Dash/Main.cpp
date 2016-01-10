@@ -565,9 +565,6 @@ Animation ZombieAnim;
 Background StartMenuBCK;
 Animation StartMenuBCKAnim;
 
-MovingBackground GameBCK;
-Animation GameBCKAnim;
-
 Button StartButton;
 Animation StartButtonAnim;
 Animation StartButtonAnimPressed;
@@ -622,8 +619,35 @@ Button QuitBtnPause;
 Animation QuitBtnPauseAnim;
 Animation QuitBtnPauseAnimPressed;
 
+MovingBackground GameBCK;
+Animation GameBCKAnim[5];
+
 Map MovingMap;
-Animation TileAnims[3];
+Animation TileAnims[5][3];
+
+Button MenuBtnLost;
+Animation MenuBtnLostAnim;
+Animation MenuBtnLostAnimPressed;
+
+Button AgainBtnLost;
+Animation AgainBtnLostAnim;
+Animation AgainBtnLostAnimPressed;
+
+Pic NewRecord;
+Animation NewRecordAnim;
+
+Pic YouKill;
+Animation YouKillAnim;
+
+Pic YouRan;
+Animation YouRanAnim;
+
+Pic GameOverLine;
+Animation GameOverLineAnim;
+
+Pic GameOver;
+Animation GameOverAnim;
+
 
 int PlayerHealth = 3;
 
@@ -685,9 +709,9 @@ void DoZombiePhysics(Player *P)
 			{
 				P->x -= (P->Right ? -ZombieSpeed : ZombieSpeed)*P->dt;
 				P->Right = !P->Right;
-			}
 		}
 	}
+}
 
 	if (GameBCK.Playing)
 		P->Vx += MovingMap.v;
@@ -709,16 +733,6 @@ void load()
 {
 	StartMenuBCKAnim.load("Pics\\home_bg.png", 1, 100, 0, 0, 511, 307);
 	StartMenuBCK.Pic = &StartMenuBCKAnim;
-
-	GameBCKAnim.load("Pics\\changjing4.jpg", 1, 100, 0, 0, 900, 505);
-	GameBCK.Pic = &GameBCKAnim;
-
-	GameBCK.v = 0.05;
-
-	GameBCK.Dst.x = -100;
-	GameBCK.Dst.y = 0;
-	GameBCK.Dst.w = 1200;
-	GameBCK.Dst.h = 600;
 
 	StartButtonAnim.load("Pics\\menu.png", 2, 100, 0, 0, 600, 100);
 	StartButtonAnimPressed.load("Pics\\menu.png", 1, 100, 0, 0, 300, 100);
@@ -750,8 +764,8 @@ void load()
 
 	SoundOn.load("pics\\SoundOn.png", 1, 100, 0, 0, 55, 55);
 	SoundOff.load("pics\\SoundOff.png", 1, 100, 0, 0, 55, 55);
-	Sound.States[0] = &SoundOn;
-	Sound.States[1] = &SoundOff;
+	Sound.States[0] = &SoundOff;
+	Sound.States[1] = &SoundOn;
 	Sound.Dst.w = 55 * 1.25;
 	Sound.Dst.h = 55 * 1.25;
 	Sound.Dst.x = 920;
@@ -759,8 +773,8 @@ void load()
 
 	MusicOn.load("pics\\MusicOn.png", 1, 100, 0, 0, 55, 55);
 	MusicOff.load("pics\\MusicOff.png", 1, 100, 0, 0, 55, 55);
-	Music.States[0] = &MusicOn;
-	Music.States[1] = &MusicOff;
+	Music.States[0] = &MusicOff;
+	Music.States[1] = &MusicOn;
 	Music.Dst.w = 55 * 1.25;
 	Music.Dst.h = 55 * 1.25;
 	Music.Dst.x = 830;
@@ -874,14 +888,115 @@ void load()
 	QuitBtnPause.Dst.w = 200 * 1.25;
 	QuitBtnPause.Dst.h = 110 * 1.25;
 
-	TileAnims[0].load("Pics\\jadde.png", 1, 100, 0, 0, 150, 278);
-	TileAnims[1].load("Pics\\L_darre.png", 1, 100, 0, 0, 150, 278);
-	TileAnims[2].load("Pics\\shib.png", 1, 100, 0, 0, 150, 374);
-	MovingMap.TileStyles[0].Anim = &TileAnims[0];
-	MovingMap.TileStyles[1].Anim = &TileAnims[1];
-	MovingMap.TileStyles[2].Anim = &TileAnims[2];
+	GameBCKAnim[0].load("Pics\\Background1.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[1].load("Pics\\Background2.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[2].load("Pics\\Background3.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[3].load("Pics\\Background4.jpg", 1, 100, 0, 0, 900, 505);
+	GameBCKAnim[4].load("Pics\\Background5.jpg", 1, 100, 0, 0, 900, 505);
 	
+	int i = rand() % 5;
+	GameBCK.Pic = &GameBCKAnim[i];
+
+	GameBCK.v = 0.05;
+
+	GameBCK.Dst.x = -100;
+	GameBCK.Dst.y = 0;
+	GameBCK.Dst.w = 1200;
+	GameBCK.Dst.h = 600;
+
+	TileAnims[0][0].load("Pics\\Road1.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[0][1].load("Pics\\Cliff1.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[0][2].load("Pics\\Slope1.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[1][0].load("Pics\\Road2.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[1][1].load("Pics\\Cliff2.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[1][2].load("Pics\\Slope2.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[2][0].load("Pics\\Road3.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[2][1].load("Pics\\Cliff3.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[2][2].load("Pics\\Slope3.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[3][0].load("Pics\\Road4.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[3][1].load("Pics\\Cliff4.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[3][2].load("Pics\\Slope4.png", 1, 100, 0, 0, 150, 374);
+
+	TileAnims[4][0].load("Pics\\Road5.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[4][1].load("Pics\\Cliff5.png", 1, 100, 0, 0, 150, 278);
+	TileAnims[4][2].load("Pics\\Slope5.png", 1, 100, 0, 0, 150, 374);
+
+	MovingMap.TileStyles[0].Anim = &TileAnims[i][0];
+	MovingMap.TileStyles[1].Anim = &TileAnims[i][1];
+	MovingMap.TileStyles[2].Anim = &TileAnims[i][2];
+
 	MovingMap.v = 0.2;
+
+	MenuBtnLostAnim.load("Pics\\MenuBtn.png", 1, 100, 0, 0, 200, 110);
+	MenuBtnLostAnimPressed.load("Pics\\MenuBtnPressed.png", 1, 100, 0, 0, 200, 110);
+	MenuBtnLost.States[0] = &MenuBtnLostAnim;
+	MenuBtnLost.States[1] = &MenuBtnLostAnim;
+	MenuBtnLost.States[2] = &MenuBtnLostAnimPressed;
+
+	MenuBtnLost.Dst.x = 150;
+	MenuBtnLost.Dst.y = 450;
+	MenuBtnLost.Dst.w = 200 * 1.25;
+	MenuBtnLost.Dst.h = 110 * 1.25;
+
+	AgainBtnLostAnim.load("Pics\\AgainBtn.png", 1, 100, 0, 0, 200, 110);
+	AgainBtnLostAnimPressed.load("Pics\\AgainBtnPressed.png", 1, 100, 0, 0, 200, 110);
+	AgainBtnLost.States[0] = &AgainBtnLostAnim;
+	AgainBtnLost.States[1] = &AgainBtnLostAnim;
+	AgainBtnLost.States[2] = &AgainBtnLostAnimPressed;
+
+	AgainBtnLost.Dst.x = 650;
+	AgainBtnLost.Dst.y = 450;
+	AgainBtnLost.Dst.w = 200 * 1.25;
+	AgainBtnLost.Dst.h = 110 * 1.25;
+
+	NewRecordAnim.load("Pics\\NewRecord.png", 3, 100, 0, 0, 750, 50);
+	NewRecordAnim.play();
+
+	NewRecord.Anim = &NewRecordAnim;
+	NewRecord.Dst.x = 400;
+	NewRecord.Dst.y = 300;
+	NewRecord.Dst.w = 150 * 1.25;
+	NewRecord.Dst.h = 50 * 1.25;
+
+	YouKillAnim.load("Pics\\YouKill.png", 1, 100, 0, 0, 200, 50);
+
+	YouKill.Anim = &YouKillAnim;
+	YouKill.Dst.x = 260;
+	YouKill.Dst.y = 350;
+	YouKill.Dst.w = 200 * 1.25;
+	YouKill.Dst.h = 50 * 1.25;
+
+	YouRanAnim.load("Pics\\YouRan.png", 1, 100, 0, 0, 200, 50);
+
+	YouRan.Anim = &YouRanAnim;
+	YouRan.Dst.x = 250;
+	YouRan.Dst.y = 400;
+	YouRan.Dst.w = 200 * 1.25;
+	YouRan.Dst.h = 50 * 1.25;
+
+	GameOverLineAnim.load("Pics\\GameOverLine.png", 1, 100, 0, 0, 800, 80);
+
+	GameOverLine.Anim = &GameOverLineAnim;
+	GameOverLine.Dst.x = 0;
+	GameOverLine.Dst.y = 100;
+	GameOverLine.Dst.w = 1000;
+	GameOverLine.Dst.h = 80 * 1.25;
+
+	GameOverAnim.load("Pics\\GameOver.png", 1, 100, 0, 0, 525, 218);
+
+	GameOver.Anim = &GameOverAnim;
+	GameOver.Dst.x = 150;
+	GameOver.Dst.y = 10;
+	GameOver.Dst.w = 525 * 1.25;
+	GameOver.Dst.h = 218 * 1.25;
+
+
+
+
+
 }
 
 void Init()
@@ -950,6 +1065,12 @@ void ResetGame()
 		Zombies[i].Ax = 0;
 		Zombies[i].Ay = Gravity;
 	}
+	int i = rand() % 5;
+	GameBCK.Pic = &GameBCKAnim[i];
+	MovingMap.TileStyles[0].Anim = &TileAnims[i][0];
+	MovingMap.TileStyles[1].Anim = &TileAnims[i][1];
+	MovingMap.TileStyles[2].Anim = &TileAnims[i][2];
+
 }
 
 void Start()
@@ -1110,6 +1231,36 @@ void Won()
 
 void Lost()
 {
+	draw(GameBCK);
+	draw(GameBCK);
+	MovingMap.Draw();
+	draw(Shade);
+	draw(GameOverLine);
+	draw(GameOver);
+	draw(YouKill);
+	draw(YouRan);
+	draw(MenuBtnLost);
+	draw(AgainBtnLost);
+
+
+	if (true/*Record more than max record*/)
+	{
+		draw(NewRecord);
+	}
+
+	MenuBtnLost.Update();
+	AgainBtnLost.Update();
+
+	if (MenuBtnLost.Puls)
+	{
+		ResetGame();
+		GameState = Start_Menu;
+	}
+	if (AgainBtnLost.Puls)
+	{
+		ResetGame();
+		GameState = Play_Mode;
+	}
 
 }
 
