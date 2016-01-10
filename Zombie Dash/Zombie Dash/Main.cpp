@@ -556,9 +556,6 @@ Animation TheGirlAnim;
 Background StartMenuBCK;
 Animation StartMenuBCKAnim;
 
-MovingBackground GameBCK;
-Animation GameBCKAnim[5];
-
 Button StartButton;
 Animation StartButtonAnim;
 Animation StartButtonAnimPressed;
@@ -613,8 +610,35 @@ Button QuitBtnPause;
 Animation QuitBtnPauseAnim;
 Animation QuitBtnPauseAnimPressed;
 
+MovingBackground GameBCK;
+Animation GameBCKAnim[5];
+
 Map MovingMap;
 Animation TileAnims[5][3];
+
+Button MenuBtnLost;
+Animation MenuBtnLostAnim;
+Animation MenuBtnLostAnimPressed;
+
+Button AgainBtnLost;
+Animation AgainBtnLostAnim;
+Animation AgainBtnLostAnimPressed;
+
+Pic NewRecord;
+Animation NewRecordAnim;
+
+Pic YouKill;
+Animation YouKillAnim;
+
+Pic YouRan;
+Animation YouRanAnim;
+
+Pic GameOverLine;
+Animation GameOverLineAnim;
+
+Pic GameOver;
+Animation GameOverAnim;
+
 
 int PlayerHealth = 3;
 
@@ -836,6 +860,74 @@ void load()
 	MovingMap.TileStyles[2].Anim = &TileAnims[i][2];
 
 	MovingMap.v = 0.2;
+
+	MenuBtnLostAnim.load("Pics\\MenuBtn.png", 1, 100, 0, 0, 200, 110);
+	MenuBtnLostAnimPressed.load("Pics\\MenuBtnPressed.png", 1, 100, 0, 0, 200, 110);
+	MenuBtnLost.States[0] = &MenuBtnLostAnim;
+	MenuBtnLost.States[1] = &MenuBtnLostAnim;
+	MenuBtnLost.States[2] = &MenuBtnLostAnimPressed;
+
+	MenuBtnLost.Dst.x = 150;
+	MenuBtnLost.Dst.y = 450;
+	MenuBtnLost.Dst.w = 200 * 1.25;
+	MenuBtnLost.Dst.h = 110 * 1.25;
+
+	AgainBtnLostAnim.load("Pics\\AgainBtn.png", 1, 100, 0, 0, 200, 110);
+	AgainBtnLostAnimPressed.load("Pics\\AgainBtnPressed.png", 1, 100, 0, 0, 200, 110);
+	AgainBtnLost.States[0] = &AgainBtnLostAnim;
+	AgainBtnLost.States[1] = &AgainBtnLostAnim;
+	AgainBtnLost.States[2] = &AgainBtnLostAnimPressed;
+
+	AgainBtnLost.Dst.x = 650;
+	AgainBtnLost.Dst.y = 450;
+	AgainBtnLost.Dst.w = 200 * 1.25;
+	AgainBtnLost.Dst.h = 110 * 1.25;
+
+	NewRecordAnim.load("Pics\\NewRecord.png", 3, 100, 0, 0, 750, 50);
+	NewRecordAnim.play();
+
+	NewRecord.Anim = &NewRecordAnim;
+	NewRecord.Dst.x = 400;
+	NewRecord.Dst.y = 300;
+	NewRecord.Dst.w = 150 * 1.25;
+	NewRecord.Dst.h = 50 * 1.25;
+
+	YouKillAnim.load("Pics\\YouKill.png", 1, 100, 0, 0, 200, 50);
+
+	YouKill.Anim = &YouKillAnim;
+	YouKill.Dst.x = 260;
+	YouKill.Dst.y = 350;
+	YouKill.Dst.w = 200 * 1.25;
+	YouKill.Dst.h = 50 * 1.25;
+
+	YouRanAnim.load("Pics\\YouRan.png", 1, 100, 0, 0, 200, 50);
+
+	YouRan.Anim = &YouRanAnim;
+	YouRan.Dst.x = 250;
+	YouRan.Dst.y = 400;
+	YouRan.Dst.w = 200 * 1.25;
+	YouRan.Dst.h = 50 * 1.25;
+
+	GameOverLineAnim.load("Pics\\GameOverLine.png", 1, 100, 0, 0, 800, 80);
+
+	GameOverLine.Anim = &GameOverLineAnim;
+	GameOverLine.Dst.x = 0;
+	GameOverLine.Dst.y = 100;
+	GameOverLine.Dst.w = 1000;
+	GameOverLine.Dst.h = 80 * 1.25;
+
+	GameOverAnim.load("Pics\\GameOver.png", 1, 100, 0, 0, 525, 218);
+
+	GameOver.Anim = &GameOverAnim;
+	GameOver.Dst.x = 150;
+	GameOver.Dst.y = 10;
+	GameOver.Dst.w = 525 * 1.25;
+	GameOver.Dst.h = 218 * 1.25;
+
+
+
+
+
 }
 
 void Init()
@@ -885,7 +977,7 @@ void ResetGame()
 	ThePlayer.Vx = 0;
 	ThePlayer.Vy = 0;
 	ThePlayer.Ax = 0;
-	ThePlayer.Ay = 0.001;
+	ThePlayer.Ay = 0.0013;
 
 	ThePlayer.x = 50;
 	ThePlayer.y = 500 - MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
@@ -1040,6 +1132,36 @@ void Won()
 
 void Lost()
 {
+	draw(GameBCK);
+	draw(GameBCK);
+	MovingMap.Draw();
+	draw(Shade);
+	draw(GameOverLine);
+	draw(GameOver);
+	draw(YouKill);
+	draw(YouRan);
+	draw(MenuBtnLost);
+	draw(AgainBtnLost);
+
+
+	if (true/*Record more than max record*/)
+	{
+		draw(NewRecord);
+	}
+
+	MenuBtnLost.Update();
+	AgainBtnLost.Update();
+
+	if (MenuBtnLost.Puls)
+	{
+		ResetGame();
+		GameState = Start_Menu;
+	}
+	if (AgainBtnLost.Puls)
+	{
+		ResetGame();
+		GameState = Play_Mode;
+	}
 
 }
 
