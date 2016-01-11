@@ -49,7 +49,7 @@ struct Animation
 	int StopFrame;
 	int PausedFrame;
 
-	Uint32 StartTime;
+	int64_t StartTime;
 
 	Animation()
 	{
@@ -686,6 +686,10 @@ Animation GunInHandAnim[NumberOfGun][2];
 Pic GunInHandFire;
 Animation GunInHandFireAnim[NumberOfGun];
 
+Pic Box;
+Animation BoxAnim;
+
+
 bool Collided(G_Rect A, G_Rect B)
 {
 	return (!(A.x > (B.x + B.w) || B.x > (A.x + A.w)) && !(A.y > (B.y + B.h) || B.y > (A.y + A.h)));
@@ -1100,6 +1104,13 @@ void load()
 	GunInHandFire.Dst.w = 83 * 1.25;
 	GunInHandFire.Dst.h = 75 * 1.25;
 
+	BoxAnim.load("Pics\\Box.png", 2, 100, 0, 0, 120, 50);
+	BoxAnim.play();
+	Box.Anim = &BoxAnim;
+	Box.Dst.x = 100;
+	Box.Dst.y = 500;
+	Box.Dst.w = 60 * 1.25;
+	Box.Dst.h = 50 * 1.25;
 }
 
 void Init()
@@ -1236,9 +1247,11 @@ void Play()
 	GunInHandFire.Dst.x = GunInHand.Dst.x + GunInHand.Dst.w;
 	GunInHandFire.Dst.y = GunInHand.Dst.y + GunInHand.Dst.h / 2 - GunInHandFire.Dst.h / 2;
 
+	draw(Box);
+
 	if (GunInHandFire.Anim->StopFrame == -1)
 		draw(GunInHandFire);
-	if (G_GetTicks() > (GunInHandFire.Anim->StartTime + GunInHandFire.Anim->FrameCount*GunInHandFire.Anim->FrameDuration))
+	if (G_GetTicks() > (GunInHandFire.Anim->StartTime + (GunInHandFire.Anim->FrameCount - GunInHandFire.Anim->PausedFrame)*GunInHandFire.Anim->FrameDuration))
 	{
 		GunInHandFire.Anim->stop();
 		GunInHand.Anim = &GunInHandAnim[Gun - 1][0];
@@ -1462,6 +1475,8 @@ void Play()
 			Zombies[i].Anim->pause();
 		for (int i = 0; i < MaxNumberOfBats; i++)
 			Bats[i].Anim->pause();
+		GunInHandFire.Anim->pause();
+		GunInHandFire.Anim->StartTime = (GunInHandFire.Anim->StartTime + GunInHandFire.Anim->FrameCount*GunInHandFire.Anim->FrameDuration) - G_GetTicks();
 	}
 
 	if (PlayerHealth == 0)
@@ -1477,6 +1492,9 @@ void Pause()
 	draw(GameBCK);
 	MovingMap.Draw();
 	draw(ThePlayer);
+	draw(GunInHand);
+	if (GunInHandFire.Anim->StartTime > 0)
+		draw(GunInHandFire);
 
 	for (int i = PlayerHealth; i < 3; i++)
 		draw(Health[i][0]);
@@ -1516,6 +1534,9 @@ void Pause()
 			Zombies[i].Anim->play();
 		for (int i = 0; i < MaxNumberOfBats; i++)
 			Bats[i].Anim->play();
+
+		if (GunInHandFire.Anim->StartTime > 0)
+			GunInHandFire.Anim->play();
 	}
 	if (RetryBtnPause.Puls)
 	{
