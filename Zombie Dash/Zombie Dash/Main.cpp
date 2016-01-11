@@ -15,14 +15,18 @@
 #define Cliff			2
 #define Road			3
 
-#define MaxNumberOfZombies 2
+#define MaxNumberOfZombies	2
+#define MaxNumberOfBats		2
 
-#define ZombieSpeed 0.05f
+#define ZombieSpeed			0.05f
+#define BatSpeed			0.05f
 
-#define Gravity 0.001f
+#define Gravity				0.0013f
 
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
+static int MapID;
+static int PlayerHealth = 3;
 
 struct Animation
 {
@@ -279,11 +283,11 @@ struct drawable
 				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
 				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
 
-				int CurrentPositionDst = int(CurrentPositon*Dst->w / Src->w) - 1;
+				int CurrentPositionDst = int(CurrentPositon*Dst->w / Src->w);
 
 				Src->w -= CurrentPositon;
 
-				Dst->x += CurrentPositionDst;
+				Dst->x += CurrentPositionDst - 1;
 				Dst->w -= CurrentPositionDst;
 
 				Texture = inp.Pic[0].Texture;
@@ -308,7 +312,7 @@ struct drawable
 				Src->x += Src->w - CurrentPositon;
 				Src->w = CurrentPositon;
 
-				Dst->w = CurrentPositionDst;
+				Dst->w = CurrentPositionDst + 1;
 
 				Texture = inp.Pic[0].Texture;
 			}
@@ -457,6 +461,7 @@ struct Map
 				Tiles[3].Terrain = Cliff;
 		}
 	}
+
 	void Draw()
 	{
 		for (int i = 0; i < 3; i++)
@@ -464,7 +469,7 @@ struct Map
 			switch (Tiles[i].Terrain)
 			{
 			case Road:
-				TileStyles[0].Dst.w = int(150 * 1.25);
+				TileStyles[0].Dst.w = int(150 * 1.25) + 1;
 				TileStyles[0].Dst.h = int(278 * 1.25);
 				TileStyles[0].Dst.y = 600 - Tiles[i].h;
 				for (int j = 0; j < 3; j++)
@@ -475,14 +480,14 @@ struct Map
 
 				break;
 			case Cliff:
-				TileStyles[1].Dst.w = int(150 * 1.25);
+				TileStyles[1].Dst.w = int(150 * 1.25) + 1;
 				TileStyles[1].Dst.h = int(278 * 1.25);
 				TileStyles[1].Dst.y = 600 - Tiles[i].h;
 				TileStyles[1].Dst.x = Tiles[i].x;
 				TileStyles[1].Flip = SDL_FLIP_NONE;
 				draw(TileStyles[1]);
 
-				TileStyles[1].Dst.w = int(150 * 1.25);
+				TileStyles[1].Dst.w = int(150 * 1.25) + 1;
 				TileStyles[1].Dst.h = int(278 * 1.25);
 				TileStyles[1].Dst.y = 600 - Tiles[i + 1].h;
 				TileStyles[1].Dst.x = Tiles[i].x + int(150 * 1.25)*2;
@@ -491,30 +496,32 @@ struct Map
 
 				break;
 			case Slope:
-				TileStyles[0].Dst.w = int(150 * 1.25);
+				TileStyles[0].Dst.w = int(150 * 1.25) + 1;
 				TileStyles[0].Dst.h = int(278 * 1.25);
 				TileStyles[0].Dst.y = 600 - Tiles[i].h;
 				TileStyles[0].Dst.x = Tiles[i].x;
 				TileStyles[0].Flip = SDL_FLIP_NONE;
 				draw(TileStyles[0]);
 
-				TileStyles[2].Dst.w = int(150 * 1.25);
+				TileStyles[2].Dst.w = int(150 * 1.25) + 1;
 				TileStyles[2].Dst.h = int(374 * 1.25);
 				TileStyles[2].Dst.y = 600 - Tiles[i].h;
 				TileStyles[2].Dst.x = Tiles[i].x + int(150 * 1.25);
 				TileStyles[2].Flip = SDL_FLIP_NONE;
 				draw(TileStyles[2]);
 
-				TileStyles[0].Dst.w = int(150 * 1.25);
+				TileStyles[0].Dst.w = int(150 * 1.25) + 1;
 				TileStyles[0].Dst.h = int(278 * 1.25);
 				TileStyles[0].Dst.y = 600 - Tiles[i + 1].h;
 				TileStyles[0].Dst.x = Tiles[i].x + int(150 * 1.25) * 2;
 				TileStyles[0].Flip = SDL_FLIP_NONE;
 				draw(TileStyles[0]);
+
 				break;
 			}
 		}
 	}
+	
 	int GetY(int X)
 	{
 		for (int i = 0; i < 3; i++)
@@ -560,7 +567,12 @@ Animation TheGuyAnim;
 Animation TheGirlAnim;
 
 Player Zombies[MaxNumberOfZombies];
-Animation ZombieAnim;
+Animation ZombieAnim[5];
+bool AlreadyCollided[MaxNumberOfZombies];
+
+Player Bats[MaxNumberOfBats];
+Animation BatAnim;
+bool AlreadyCollidedWithBats[MaxNumberOfBats];
 
 Background StartMenuBCK;
 Animation StartMenuBCKAnim;
@@ -648,8 +660,13 @@ Animation GameOverLineAnim;
 Pic GameOver;
 Animation GameOverAnim;
 
+Pic Health[3][2];
+Animation HealthAnim[2];
 
-int PlayerHealth = 3;
+bool Collided(G_Rect A, G_Rect B)
+{
+	return (!(A.x > (B.x + B.w) || B.x > (A.x + A.w)) && !(A.y > (B.y + B.h) || B.y > (A.y + A.h)));
+}
 
 void DoPhysics(Player *P)
 {
@@ -731,6 +748,8 @@ void draw(drawable inp)
 
 void load()
 {
+	MapID = rand() % 5;
+
 	StartMenuBCKAnim.load("Pics\\home_bg.png", 1, 100, 0, 0, 511, 307);
 	StartMenuBCK.Pic = &StartMenuBCKAnim;
 
@@ -840,15 +859,31 @@ void load()
 	ThePlayer.Pos.w = 70;
 	ThePlayer.Pos.h = 100;
 
-	ZombieAnim.load("Pics\\zombie.png", 8, 100, 0, 0, 320, 64);
+	char path[17] = "Pics\\zombie1.png";
+	for (int i = 0; i < 5; i++)
+	{
+		path[11] = '1' + i;
+		ZombieAnim[i].load(path, 8, 100, 0, 0, 320, 64);
+	}
 
 	for (int i = 0; i < MaxNumberOfZombies; i++)
 	{
-		Zombies[i].Anim = &ZombieAnim;
+		Zombies[i].Anim = &ZombieAnim[MapID];
 		Zombies[i].x = 0;
 		Zombies[i].y = 700;
 		Zombies[i].Pos.w = 70;
 		Zombies[i].Pos.h = 100;
+	}
+
+	BatAnim.load("Pics\\bat.png", 2, 100, 0, 0, 96, 58);
+
+	for (int i = 0; i < MaxNumberOfBats; i++)
+	{
+		Bats[i].Anim = &BatAnim;
+		Zombies[i].x = 0;
+		Zombies[i].y = 700;
+		Zombies[i].Pos.w = 48 * 1.25;
+		Zombies[i].Pos.h = 58 * 1.25;
 	}
 	
 
@@ -894,8 +929,7 @@ void load()
 	GameBCKAnim[3].load("Pics\\Background4.jpg", 1, 100, 0, 0, 900, 505);
 	GameBCKAnim[4].load("Pics\\Background5.jpg", 1, 100, 0, 0, 900, 505);
 	
-	int i = rand() % 5;
-	GameBCK.Pic = &GameBCKAnim[i];
+	GameBCK.Pic = &GameBCKAnim[MapID];
 
 	GameBCK.v = 0.05;
 
@@ -924,9 +958,9 @@ void load()
 	TileAnims[4][1].load("Pics\\Cliff5.png", 1, 100, 0, 0, 150, 278);
 	TileAnims[4][2].load("Pics\\Slope5.png", 1, 100, 0, 0, 150, 374);
 
-	MovingMap.TileStyles[0].Anim = &TileAnims[i][0];
-	MovingMap.TileStyles[1].Anim = &TileAnims[i][1];
-	MovingMap.TileStyles[2].Anim = &TileAnims[i][2];
+	MovingMap.TileStyles[0].Anim = &TileAnims[MapID][0];
+	MovingMap.TileStyles[1].Anim = &TileAnims[MapID][1];
+	MovingMap.TileStyles[2].Anim = &TileAnims[MapID][2];
 
 	MovingMap.v = 0.2;
 
@@ -993,10 +1027,22 @@ void load()
 	GameOver.Dst.w = 525 * 1.25;
 	GameOver.Dst.h = 218 * 1.25;
 
+	HealthAnim[0].load("Pics\\LifeShown.png", 1, 100, 0, 0, 50, 50);
+	HealthAnim[1].load("Pics\\LifeShown.png", 1, 100, 50, 0, 50, 50);
 
-
-
-
+	for (int i = 0; i < 3; i++)
+	{
+		Health[i][0].Anim = &HealthAnim[0];
+		Health[i][1].Anim = &HealthAnim[1];
+		Health[i][0].Dst.w = 62;
+		Health[i][0].Dst.h = 62;
+		Health[i][1].Dst.w = 62;
+		Health[i][1].Dst.h = 62;
+		Health[i][0].Dst.x = 1000-(3-i)* 70;
+		Health[i][0].Dst.y = 5;
+		Health[i][1].Dst.x = 1000 - (3 - i) * 70;
+		Health[i][1].Dst.y = 5;
+	}
 }
 
 void Init()
@@ -1032,6 +1078,8 @@ void HandleEvent()
 
 void ResetGame()
 {
+	MapID = rand() % 5;
+
 	GameBCK.Stop();
 	GameBCK.Play();
 
@@ -1053,23 +1101,36 @@ void ResetGame()
 
 	PlayerHealth = 3;
 
-	ZombieAnim.stop();
-	ZombieAnim.play();
+	ZombieAnim[MapID].stop();
+	ZombieAnim[MapID].play();
 
 	for (int i = 0; i < MaxNumberOfZombies; i++)
 	{
+		Zombies[i].Anim = &ZombieAnim[MapID];
 		Zombies[i].LastTick = G_GetTicks();
 		Zombies[i].y = 700;
+		Zombies[i].x = -100;
 		Zombies[i].Vx = 0;
 		Zombies[i].Vy = 0;
 		Zombies[i].Ax = 0;
 		Zombies[i].Ay = Gravity;
 	}
-	int i = rand() % 5;
-	GameBCK.Pic = &GameBCKAnim[i];
-	MovingMap.TileStyles[0].Anim = &TileAnims[i][0];
-	MovingMap.TileStyles[1].Anim = &TileAnims[i][1];
-	MovingMap.TileStyles[2].Anim = &TileAnims[i][2];
+	
+	for (int i = 0; i < MaxNumberOfBats; i++)
+	{
+		Bats[i].Anim = &BatAnim;
+		Bats[i].LastTick = G_GetTicks();
+		Bats[i].y = 700;
+		Bats[i].x = -100;
+		Bats[i].Vx = 0;
+		Bats[i].Vy = 0;
+		Bats[i].Ax = 0;
+		Bats[i].Ay = 0;
+	}
+	GameBCK.Pic = &GameBCKAnim[MapID];
+	MovingMap.TileStyles[0].Anim = &TileAnims[MapID][0];
+	MovingMap.TileStyles[1].Anim = &TileAnims[MapID][1];
+	MovingMap.TileStyles[2].Anim = &TileAnims[MapID][2];
 
 }
 
@@ -1098,6 +1159,11 @@ void Play()
 	MovingMap.Draw();
 	draw(ThePlayer);
 
+	for (int i = PlayerHealth; i < 3; i++)
+		draw(Health[i][0]);
+	for (int i = 0; i < PlayerHealth; i++)
+		draw(Health[i][1]);
+
 	MovingMap.Update();
 
 
@@ -1106,19 +1172,37 @@ void Play()
 
 	for (int i = 0; i < MaxNumberOfZombies; i++)
 	{
-		if (Zombies[i].y > 600 || (Zombies[i].x + Zombies[i].Pos.w) < 0 || Zombies[i].x > 1000)
+		if ((Zombies[i].y > 600 || (Zombies[i].x + Zombies[i].Pos.w) < 0) && (rand() % 200) > 190)
 		{
-			if ((rand() % 200) > 190)
+			if (rand() % 100 > 50 || MovingMap.Tiles[3].Terrain == Slope)
+				Zombies[i].x = rand() % 700 + 300;
+			else
 			{
-				Zombies[i].x = rand() % 700 + 150;
-				while (MovingMap.GetY(Zombies[i].x + Zombies[i].Pos.w / 2) == 0)
-					Zombies[i].x = rand() % 700 + 150;
-				Zombies[i].y = 450 - MovingMap.GetY(Zombies[i].x + Zombies[i].Pos.w / 2);
-				Zombies[i].Right = (rand() % 6) > 2;
+				Zombies[i].x = MovingMap.Tiles[3].x + int(150 * 1.25) * 3 - Zombies[i].Pos.w;
+				Zombies[i].Right = false;
 			}
+
+			while (MovingMap.GetY(Zombies[i].x + Zombies[i].Pos.w / 2) == 0)
+				Zombies[i].x = rand() % 700 + 150;
+
+			Zombies[i].y = 0;
+			Zombies[i].Right = (rand() % 6) > 2;
+			AlreadyCollided[i] = false;
 		}
 		draw(Zombies[i]);
 		DoZombiePhysics(&Zombies[i]);
+	}
+
+	for (int i = 0; i < MaxNumberOfBats; i++)
+	{
+		if ((Bats[i].y > 600 || (Bats[i].x + Bats[i].Pos.w) < 0) && (rand() % 2000) > 1990)
+		{
+			Bats[i].y = rand() % 400;
+			Bats[i].x = 1500;
+			Bats[i].Vx = -MovingMap.v - BatSpeed;
+		}
+		draw(Bats[i]);
+		Bats[i].update_pos();
 	}
 
 	if (Event == G_KEYDOWN && G_Keyboard == GK_SPACE&&ThePlayer.IsOnFloor)
@@ -1129,7 +1213,37 @@ void Play()
 	if (ThePlayer.y > 600)
 		PlayerHealth = 0;
 
-	
+	G_Rect PlayerPos, ZombiePos;
+	PlayerPos = ThePlayer.Pos;
+	PlayerPos.x = ThePlayer.x;
+	PlayerPos.y = ThePlayer.y;
+
+	for (int i = 0; i < MaxNumberOfZombies; i++)
+	{
+		ZombiePos = Zombies[i].Pos;
+		ZombiePos.x = Zombies[i].x;
+		ZombiePos.y = Zombies[i].y;
+
+		PlayerPos = ThePlayer.Pos;
+		PlayerPos.x = ThePlayer.x;
+		PlayerPos.y = ThePlayer.y;
+
+		if (Collided(PlayerPos, ZombiePos))
+		{
+			if (ThePlayer.IsOnFloor)
+			{
+				if (!AlreadyCollided[i])
+				{
+					PlayerHealth--;
+					AlreadyCollided[i] = true;
+				}
+			}
+			else if (ThePlayer.Vy > 0.0f)
+			{
+				Zombies[i].x = -100;
+			}
+		}
+	}
 
 	PauseBtn.Update();
 	if (PauseBtn.Puls)
@@ -1137,6 +1251,8 @@ void Play()
 		GameState = Pause_Menu;
 		GameBCK.Pause();
 		ThePlayer.Anim->pause();
+		for (int i = 0; i < MaxNumberOfZombies; i++)
+			Zombies[i].Anim->pause();
 	}
 
 	if (PlayerHealth == 0)
@@ -1152,6 +1268,18 @@ void Pause()
 	draw(GameBCK);
 	MovingMap.Draw();
 	draw(ThePlayer);
+
+	for (int i = PlayerHealth; i < 3; i++)
+		draw(Health[i][0]);
+	for (int i = 0; i < PlayerHealth; i++)
+		draw(Health[i][1]);
+	
+	for (int i = 0; i < MaxNumberOfZombies; i++)
+	{
+		draw(Zombies[i]);
+		Zombies[i].LastTick = G_GetTicks();
+	}
+
 	draw(Shade);
 	draw(ResumeBtnPause);
 	draw(RetryBtnPause);
@@ -1169,6 +1297,8 @@ void Pause()
 		GameState = Play_Mode;
 		GameBCK.Play();
 		ThePlayer.Anim->play();
+		for (int i = 0; i < MaxNumberOfZombies; i++)
+			Zombies[i].Anim->play();
 	}
 	if (RetryBtnPause.Puls)
 	{
@@ -1234,6 +1364,20 @@ void Lost()
 	draw(GameBCK);
 	draw(GameBCK);
 	MovingMap.Draw();
+
+	for (int i = PlayerHealth; i < 3; i++)
+		draw(Health[i][0]);
+	for (int i = 0; i < PlayerHealth; i++)
+		draw(Health[i][1]);
+
+	for (int i = 0; i < MaxNumberOfZombies; i++)
+	{
+		draw(Zombies[i]);
+
+		if (!(Zombies[i].y > 600 || (Zombies[i].x + Zombies[i].Pos.w) < 0 || Zombies[i].x > 1000))
+			DoZombiePhysics(&Zombies[i]);
+	}
+	
 	draw(Shade);
 	draw(GameOverLine);
 	draw(GameOver);
@@ -1276,7 +1420,6 @@ void ClearExit()
 
 void main()
 {
-
 	Init();
 
 	while (GameState != Clear_For_Exit)
