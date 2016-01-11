@@ -16,10 +16,10 @@
 #define Road			3
 
 #define MaxNumberOfZombies	2
-#define MaxNumberOfBats		2
+#define MaxNumberOfBats		1
 
 #define ZombieSpeed			0.05f
-#define BatSpeed			0.05f
+#define BatSpeed			0.1f
 
 #define Gravity				0.0013f
 
@@ -880,10 +880,10 @@ void load()
 	for (int i = 0; i < MaxNumberOfBats; i++)
 	{
 		Bats[i].Anim = &BatAnim;
-		Zombies[i].x = 0;
-		Zombies[i].y = 700;
-		Zombies[i].Pos.w = 48 * 1.25;
-		Zombies[i].Pos.h = 58 * 1.25;
+		Bats[i].x = 0;
+		Bats[i].y = 700;
+		Bats[i].Pos.w = 48 * 1.25;
+		Bats[i].Pos.h = 58 * 1.25;
 	}
 	
 
@@ -1126,7 +1126,12 @@ void ResetGame()
 		Bats[i].Vy = 0;
 		Bats[i].Ax = 0;
 		Bats[i].Ay = 0;
+		Bats[i].Right = true;
 	}
+
+	BatAnim.stop();
+	BatAnim.play();
+
 	GameBCK.Pic = &GameBCKAnim[MapID];
 	MovingMap.TileStyles[0].Anim = &TileAnims[MapID][0];
 	MovingMap.TileStyles[1].Anim = &TileAnims[MapID][1];
@@ -1195,7 +1200,7 @@ void Play()
 
 	for (int i = 0; i < MaxNumberOfBats; i++)
 	{
-		if ((Bats[i].y > 600 || (Bats[i].x + Bats[i].Pos.w) < 0) && (rand() % 2000) > 1990)
+		if ((Bats[i].y > 600 || (Bats[i].x + Bats[i].Pos.w) < 0) && (rand() % 2000) > 1995)
 		{
 			Bats[i].y = rand() % 400;
 			Bats[i].x = 1500;
@@ -1213,7 +1218,7 @@ void Play()
 	if (ThePlayer.y > 600)
 		PlayerHealth = 0;
 
-	G_Rect PlayerPos, ZombiePos;
+	G_Rect PlayerPos, ZombiePos, BatPos;
 	PlayerPos = ThePlayer.Pos;
 	PlayerPos.x = ThePlayer.x;
 	PlayerPos.y = ThePlayer.y;
@@ -1223,10 +1228,6 @@ void Play()
 		ZombiePos = Zombies[i].Pos;
 		ZombiePos.x = Zombies[i].x;
 		ZombiePos.y = Zombies[i].y;
-
-		PlayerPos = ThePlayer.Pos;
-		PlayerPos.x = ThePlayer.x;
-		PlayerPos.y = ThePlayer.y;
 
 		if (Collided(PlayerPos, ZombiePos))
 		{
@@ -1245,6 +1246,19 @@ void Play()
 		}
 	}
 
+	for (int i = 0; i < MaxNumberOfBats; i++)
+	{
+		BatPos = Bats[i].Pos;
+		BatPos.x = Bats[i].x;
+		BatPos.y = Bats[i].y;
+
+		if (Collided(PlayerPos, BatPos) && !AlreadyCollidedWithBats[i])
+		{
+			PlayerHealth--;
+			AlreadyCollidedWithBats[i] = true;
+		}
+	}
+
 	PauseBtn.Update();
 	if (PauseBtn.Puls)
 	{
@@ -1253,6 +1267,8 @@ void Play()
 		ThePlayer.Anim->pause();
 		for (int i = 0; i < MaxNumberOfZombies; i++)
 			Zombies[i].Anim->pause();
+		for (int i = 0; i < MaxNumberOfBats; i++)
+			Bats[i].Anim->pause();
 	}
 
 	if (PlayerHealth == 0)
@@ -1280,6 +1296,12 @@ void Pause()
 		Zombies[i].LastTick = G_GetTicks();
 	}
 
+	for (int i = 0; i < MaxNumberOfBats; i++)
+	{
+		draw(Bats[i]);
+		Bats[i].LastTick = G_GetTicks();
+	}
+
 	draw(Shade);
 	draw(ResumeBtnPause);
 	draw(RetryBtnPause);
@@ -1299,6 +1321,8 @@ void Pause()
 		ThePlayer.Anim->play();
 		for (int i = 0; i < MaxNumberOfZombies; i++)
 			Zombies[i].Anim->play();
+		for (int i = 0; i < MaxNumberOfBats; i++)
+			Bats[i].Anim->play();
 	}
 	if (RetryBtnPause.Puls)
 	{
@@ -1378,6 +1402,14 @@ void Lost()
 			DoZombiePhysics(&Zombies[i]);
 	}
 	
+	for (int i = 0; i < MaxNumberOfBats; i++)
+	{
+		draw(Bats[i]);
+
+		if (!(Bats[i].y > 600 || (Bats[i].x + Bats[i].Pos.w) < 0 || Bats[i].x > 1000))
+			Bats[i].update_pos();
+	}
+
 	draw(Shade);
 	draw(GameOverLine);
 	draw(GameOver);
