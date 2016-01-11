@@ -246,6 +246,26 @@ struct Pic
 	}
 };
 
+struct MovingPic
+{
+	float x, y, Vx, Vy, Ax, Ay;
+	Pic ThePic;
+
+	int LastTick;
+	int dt;
+
+	void update_pos()
+	{
+		dt = G_GetTicks() - LastTick;
+		LastTick = G_GetTicks();
+		Vx += float(dt)*Ax;
+		Vy += float(dt)*Ay;
+
+		x += float(dt)*Vx;
+		y += float(dt)*Vy;
+	}
+};
+
 struct drawable
 {
 	G_Texture* Texture;
@@ -410,6 +430,26 @@ struct drawable
 			Dst = &inp.Dst;
 			Texture = Anim[0].Texture;
 			Flip = inp.Flip;
+		}
+		else
+			Texture = NULL;
+	}
+	drawable(MovingPic &inp)
+	{
+		inp.ThePic.Dst.x = inp.x;
+		inp.ThePic.Dst.y = inp.y;
+
+		Animation *Anim = inp.ThePic.Anim;
+
+		if (Anim[0].StopFrame != -2)
+		{
+			if (Anim[0].StopFrame == -1)
+				Src = &Anim[0].Src[((G_GetTicks() - Anim[0].StartTime) / Anim[0].FrameDuration + Anim[0].PausedFrame) % Anim[0].FrameCount];
+			else
+				Src = &Anim[0].Src[Anim[0].PausedFrame];
+			Dst = &inp.ThePic.Dst;
+			Texture = Anim[0].Texture;
+			Flip = inp.ThePic.Flip;
 		}
 		else
 			Texture = NULL;
@@ -674,10 +714,10 @@ Animation GameOverAnim;
 Pic Health[3][2];
 Animation HealthAnim[2];
 
-Pic ZombieRots[MaxNumberOfZombieRot];
+MovingPic ZombieRots[MaxNumberOfZombieRot];
 Animation ZombieRotAnims[MaxNumberOfZombieRot];
 
-Pic BatRots[MaxNumberOfBatRot];
+MovingPic BatRots[MaxNumberOfBatRot];
 Animation BatRotAnims[MaxNumberOfBatRot];
 
 Pic GunInHand;
@@ -686,7 +726,7 @@ Animation GunInHandAnim[NumberOfGun][2];
 Pic GunInHandFire;
 Animation GunInHandFireAnim[NumberOfGun];
 
-Pic Box;
+MovingPic Box;
 Animation BoxAnim;
 
 
@@ -1074,13 +1114,13 @@ void load()
 	for (int i = 0; i < MaxNumberOfZombieRot; i++)
 	{
 		ZombieRotAnims[i].load("Pics\\zombie_hit.png", 6, 50, 0, 0, 401, 80);
-		ZombieRots[i].Anim = &ZombieRotAnims[i];
+		ZombieRots[i].ThePic.Anim = &ZombieRotAnims[i];
 	}
 
 	for (int i = 0; i < MaxNumberOfBatRot; i++)
 	{
 		BatRotAnims[i].load("Pics\\bat_hit.png", 4, 50, 0, 0, 420, 85);
-		BatRots[i].Anim = &BatRotAnims[i];
+		BatRots[i].ThePic.Anim = &BatRotAnims[i];
 	}
 
 	char pathGun[14] = "Pics\\Gun1.png";
@@ -1106,11 +1146,11 @@ void load()
 
 	BoxAnim.load("Pics\\Box.png", 2, 100, 0, 0, 120, 50);
 	BoxAnim.play();
-	Box.Anim = &BoxAnim;
-	Box.Dst.x = 100;
-	Box.Dst.y = 500;
-	Box.Dst.w = 60 * 1.25;
-	Box.Dst.h = 50 * 1.25;
+	Box.ThePic.Anim = &BoxAnim;
+	Box.x = 100;
+	Box.y = 100;
+	Box.ThePic.Dst.w = 60 * 1.25;
+	Box.ThePic.Dst.h = 50 * 1.25;
 }
 
 void Init()
@@ -1206,12 +1246,33 @@ void ResetGame()
 	MovingMap.TileStyles[2].Anim = &TileAnims[MapID][2];
 
 	for (int i = 0; i < MaxNumberOfZombieRot; i++)
-		ZombieRots[i].Dst.x = -100;
+	{
+		ZombieRots[i].x = -100;
+		ZombieRots[i].Ax = 0;
+		ZombieRots[i].Ay = 0;
+		ZombieRots[i].Vx = 0;
+		ZombieRots[i].Vy = 0;
+		ZombieRots[i].LastTick = G_GetTicks();
+	}
 	for (int i = 0; i < MaxNumberOfBatRot; i++)
-		BatRots[i].Dst.x = -100;
+	{
+		BatRots[i].x = -100;
+		BatRots[i].Ax = 0;
+		BatRots[i].Ay = 0;
+		BatRots[i].Vx = 0;
+		BatRots[i].Vy = 0;
+		BatRots[i].LastTick = G_GetTicks();
+	}
 
 	GunInHandFire.Anim->stop();
 
+
+	Box.x = -100;
+	Box.Ax = 0;
+	Box.Ay = 0;
+	Box.Vx = 0;
+	Box.Vy = 0;
+	Box.LastTick = G_GetTicks();
 }
 
 void Start()
@@ -1262,11 +1323,19 @@ void Play()
 	for (int i = 0; i < PlayerHealth; i++)
 		draw(Health[i][1]);
 	for (int i = 0; i < MaxNumberOfZombieRot; i++)
-		if (G_GetTicks() < (ZombieRots[i].Anim->StartTime + ZombieRots[i].Anim->FrameCount*ZombieRots[i].Anim->FrameDuration))
+		if (G_GetTicks() < (ZombieRots[i].ThePic.Anim->StartTime + (ZombieRots[i].ThePic.Anim->FrameCount - ZombieRots[i].ThePic.Anim->PausedFrame)*ZombieRots[i].ThePic.Anim->FrameDuration))
+		{
 			draw(ZombieRots[i]);
+			ZombieRots[i].Vx = -MovingMap.v;
+			ZombieRots[i].update_pos();
+		}
 	for (int i = 0; i < MaxNumberOfBatRot; i++)
-		if (G_GetTicks() < (BatRots[i].Anim->StartTime + BatRots[i].Anim->FrameCount*BatRots[i].Anim->FrameDuration))
+		if (G_GetTicks() < (BatRots[i].ThePic.Anim->StartTime + (BatRots[i].ThePic.Anim->FrameCount - BatRots[i].ThePic.Anim->PausedFrame)*BatRots[i].ThePic.Anim->FrameDuration))
+		{
 			draw(BatRots[i]);
+			BatRots[i].Vx = -MovingMap.v;
+			BatRots[i].update_pos();
+		}
 	MovingMap.Update();
 
 
@@ -1302,11 +1371,12 @@ void Play()
 
 				if (Collided(GunKillingRange[0], ZombiePos))
 				{
-					ZombieRots[CounterZombieRots].Dst = Zombies[i].Pos;
-					ZombieRots[CounterZombieRots].Dst.x = Zombies[i].x;
-					ZombieRots[CounterZombieRots].Dst.y = Zombies[i].y;
-					ZombieRots[CounterZombieRots].Anim->stop();
-					ZombieRots[CounterZombieRots].Anim->play();
+					ZombieRots[CounterZombieRots].ThePic.Dst = Zombies[i].Pos;
+					ZombieRots[CounterZombieRots].x = Zombies[i].x;
+					ZombieRots[CounterZombieRots].y = Zombies[i].y;
+					ZombieRots[CounterZombieRots].ThePic.Anim->stop();
+					ZombieRots[CounterZombieRots].ThePic.Anim->play();
+					ZombieRots[CounterZombieRots].LastTick = G_GetTicks();
 
 					Zombies[i].x = -100;
 
@@ -1323,11 +1393,12 @@ void Play()
 
 				if (Collided(GunKillingRange[0], BatPos))
 				{
-					BatRots[CounterBatRots].Dst = Bats[i].Pos;
-					BatRots[CounterBatRots].Dst.x = Bats[i].x;
-					BatRots[CounterBatRots].Dst.y = Bats[i].y;
-					BatRots[CounterBatRots].Anim->stop();
-					BatRots[CounterBatRots].Anim->play();
+					BatRots[CounterBatRots].ThePic.Dst = Bats[i].Pos;
+					BatRots[CounterBatRots].x = Bats[i].x;
+					BatRots[CounterBatRots].y = Bats[i].y;
+					BatRots[CounterBatRots].ThePic.Anim->stop();
+					BatRots[CounterBatRots].ThePic.Anim->play();
+					BatRots[CounterBatRots].LastTick = G_GetTicks();
 
 					Bats[i].x = -100;
 
@@ -1384,6 +1455,13 @@ void Play()
 		Bats[i].update_pos();
 	}
 
+	Box.Vx = -MovingMap.v;
+
+	Box.update_pos();
+
+	if ((rand() % 1000000) == 1242 && (Box.x + Box.ThePic.Dst.w) < 0)
+		Box.x = 1100;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//
 	//                                                 End Of Generating Stuff
@@ -1430,11 +1508,12 @@ void Play()
 			}
 			else if (ThePlayer.Vy > 0.0f)
 			{
-				ZombieRots[CounterZombieRots].Dst = Zombies[i].Pos;
-				ZombieRots[CounterZombieRots].Dst.x = Zombies[i].x;
-				ZombieRots[CounterZombieRots].Dst.y = Zombies[i].y;
-				ZombieRots[CounterZombieRots].Anim->stop();
-				ZombieRots[CounterZombieRots].Anim->play();
+				ZombieRots[CounterZombieRots].ThePic.Dst = Zombies[i].Pos;
+				ZombieRots[CounterZombieRots].x = Zombies[i].x;
+				ZombieRots[CounterZombieRots].y = Zombies[i].y;
+				ZombieRots[CounterZombieRots].ThePic.Anim->stop();
+				ZombieRots[CounterZombieRots].ThePic.Anim->play();
+				ZombieRots[CounterZombieRots].LastTick = G_GetTicks();
 
 				Zombies[i].x = -100.0f;
 				ThePlayer.Vy = 0.0f;
@@ -1476,7 +1555,18 @@ void Play()
 		for (int i = 0; i < MaxNumberOfBats; i++)
 			Bats[i].Anim->pause();
 		GunInHandFire.Anim->pause();
-		GunInHandFire.Anim->StartTime = (GunInHandFire.Anim->StartTime + GunInHandFire.Anim->FrameCount*GunInHandFire.Anim->FrameDuration) - G_GetTicks();
+		GunInHandFire.Anim->StartTime = (GunInHandFire.Anim->StartTime + (GunInHandFire.Anim->FrameCount - GunInHandFire.Anim->PausedFrame)*GunInHandFire.Anim->FrameDuration) - G_GetTicks();
+
+		for (int i = 0; i < MaxNumberOfZombieRot; i++)
+			{
+				ZombieRots[i].ThePic.Anim->pause();
+				ZombieRots[i].ThePic.Anim->StartTime = (ZombieRots[i].ThePic.Anim->StartTime + (ZombieRots[i].ThePic.Anim->FrameCount - ZombieRots[i].ThePic.Anim->PausedFrame)*ZombieRots[i].ThePic.Anim->FrameDuration) - G_GetTicks();
+			}
+		for (int i = 0; i < MaxNumberOfBatRot; i++)
+		{
+			BatRots[i].ThePic.Anim->pause();
+			BatRots[i].ThePic.Anim->StartTime = (BatRots[i].ThePic.Anim->StartTime + (BatRots[i].ThePic.Anim->FrameCount - BatRots[i].ThePic.Anim->PausedFrame)*BatRots[i].ThePic.Anim->FrameDuration) - G_GetTicks();
+		}
 	}
 
 	if (PlayerHealth == 0)
@@ -1513,6 +1603,20 @@ void Pause()
 		Bats[i].LastTick = G_GetTicks();
 	}
 
+	for (int i = 0; i < MaxNumberOfZombieRot; i++)
+		if (ZombieRots[i].ThePic.Anim->StartTime>0)
+		{
+			draw(ZombieRots[i]);
+			ZombieRots[i].LastTick = G_GetTicks();
+		}
+	for (int i = 0; i < MaxNumberOfBatRot; i++)
+		if (BatRots[i].ThePic.Anim->StartTime>0)
+		{
+			draw(ZombieRots[i]);
+			BatRots[i].LastTick = G_GetTicks();
+		}
+
+
 	draw(Shade);
 	draw(ResumeBtnPause);
 	draw(RetryBtnPause);
@@ -1537,6 +1641,13 @@ void Pause()
 
 		if (GunInHandFire.Anim->StartTime > 0)
 			GunInHandFire.Anim->play();
+
+		for (int i = 0; i < MaxNumberOfZombieRot; i++)
+			if (ZombieRots[i].ThePic.Anim->StartTime>0)
+				ZombieRots[i].ThePic.Anim->play();
+		for (int i = 0; i < MaxNumberOfBatRot; i++)
+			if (BatRots[i].ThePic.Anim->StartTime>0)
+				BatRots[i].ThePic.Anim->play();
 	}
 	if (RetryBtnPause.Puls)
 	{
