@@ -15,18 +15,27 @@
 #define Cliff			2
 #define Road			3
 
-#define MaxNumberOfZombies	2
-#define MaxNumberOfBats		1
+#define NumberOfGun		2
+#define DefaultGun		1
+#define LazerGun		2
+
+#define MaxNumberOfZombies		2
+#define MaxNumberOfBats			1
+#define MaxNumberOfZombieRot	10
+#define MaxNumberOfBatRot	10
 
 #define ZombieSpeed			0.05f
 #define BatSpeed			0.1f
 
-#define Gravity				0.0013f
+#define Gravity				0.0017f
 
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
 static int MapID;
 static int PlayerHealth = 3;
+static int CounterZombieRots = 0;
+static int CounterBatRots = 0;
+static int Gun = DefaultGun;
 
 struct Animation
 {
@@ -260,6 +269,7 @@ struct drawable
 				Src = &inp.Pic[0].Src[inp.Pic[0].PausedFrame];
 			Dst = NULL;
 			Texture = inp.Pic[0].Texture;
+			Flip = SDL_FLIP_NONE;
 		}
 		else
 			Texture = NULL;
@@ -288,6 +298,7 @@ struct drawable
 				Src->w -= CurrentPositon;
 
 				Dst->x += CurrentPositionDst - 1;
+
 				Dst->w -= CurrentPositionDst;
 
 				Texture = inp.Pic[0].Texture;
@@ -316,7 +327,7 @@ struct drawable
 
 				Texture = inp.Pic[0].Texture;
 			}
-
+			Flip = SDL_FLIP_NONE;
 			inp.FirstHalf = !inp.FirstHalf;
 		}
 		else
@@ -663,6 +674,18 @@ Animation GameOverAnim;
 Pic Health[3][2];
 Animation HealthAnim[2];
 
+Pic ZombieRots[MaxNumberOfZombieRot];
+Animation ZombieRotAnims[MaxNumberOfZombieRot];
+
+Pic BatRots[MaxNumberOfBatRot];
+Animation BatRotAnims[MaxNumberOfBatRot];
+
+Pic GunInHand;
+Animation GunInHandAnim[NumberOfGun][2];
+
+Pic GunInHandFire;
+Animation GunInHandFireAnim[NumberOfGun];
+
 bool Collided(G_Rect A, G_Rect B)
 {
 	return (!(A.x > (B.x + B.w) || B.x > (A.x + A.w)) && !(A.y > (B.y + B.h) || B.y > (A.y + A.h)));
@@ -962,7 +985,7 @@ void load()
 	MovingMap.TileStyles[1].Anim = &TileAnims[MapID][1];
 	MovingMap.TileStyles[2].Anim = &TileAnims[MapID][2];
 
-	MovingMap.v = 0.2;
+	MovingMap.v = 0.4;
 
 	MenuBtnLostAnim.load("Pics\\MenuBtn.png", 1, 100, 0, 0, 200, 110);
 	MenuBtnLostAnimPressed.load("Pics\\MenuBtnPressed.png", 1, 100, 0, 0, 200, 110);
@@ -1043,6 +1066,40 @@ void load()
 		Health[i][1].Dst.x = 1000 - (3 - i) * 70;
 		Health[i][1].Dst.y = 5;
 	}
+
+	for (int i = 0; i < MaxNumberOfZombieRot; i++)
+	{
+		ZombieRotAnims[i].load("Pics\\zombie_hit.png", 6, 50, 0, 0, 401, 80);
+		ZombieRots[i].Anim = &ZombieRotAnims[i];
+	}
+
+	for (int i = 0; i < MaxNumberOfBatRot; i++)
+	{
+		BatRotAnims[i].load("Pics\\bat_hit.png", 4, 50, 0, 0, 420, 85);
+		BatRots[i].Anim = &BatRotAnims[i];
+	}
+
+	char pathGun[14] = "Pics\\Gun1.png";
+	for (int i = 0; i < NumberOfGun; i++)
+	{
+		pathGun[8] = '1' + i;
+		GunInHandAnim[i][0].load(pathGun, 1, 100, 0, 0, 60, 30);
+		GunInHandAnim[i][1].load(pathGun, 1, 100, 60, 0, 60, 30);
+	}
+	GunInHand.Anim = &GunInHandAnim[0][0];
+	GunInHand.Dst.w = 60 * 1.25;
+	GunInHand.Dst.h = 30 * 1.25;
+
+	char pathGunFire[18] = "Pics\\GunFire1.png";
+	for (int i = 0; i < NumberOfGun; i++)
+	{
+		pathGunFire[12] = '1' + i;
+		GunInHandFireAnim[i].load(pathGunFire, 4, 100, 0, 0, 332, 75);
+	}
+	GunInHandFire.Anim = &GunInHandFireAnim[0];
+	GunInHandFire.Dst.w = 83 * 1.25;
+	GunInHandFire.Dst.h = 75 * 1.25;
+
 }
 
 void Init()
@@ -1137,6 +1194,13 @@ void ResetGame()
 	MovingMap.TileStyles[1].Anim = &TileAnims[MapID][1];
 	MovingMap.TileStyles[2].Anim = &TileAnims[MapID][2];
 
+	for (int i = 0; i < MaxNumberOfZombieRot; i++)
+		ZombieRots[i].Dst.x = -100;
+	for (int i = 0; i < MaxNumberOfBatRot; i++)
+		BatRots[i].Dst.x = -100;
+
+	GunInHandFire.Anim->stop();
+
 }
 
 void Start()
@@ -1164,23 +1228,119 @@ void Play()
 	MovingMap.Draw();
 	draw(ThePlayer);
 
+	GunInHand.Dst.x = ThePlayer.Pos.x + ThePlayer.Pos.w / 5;
+	GunInHand.Dst.y = ThePlayer.Pos.y + ThePlayer.Pos.h / 1.9f;
+	
+	draw(GunInHand);
+
+	GunInHandFire.Dst.x = GunInHand.Dst.x + GunInHand.Dst.w;
+	GunInHandFire.Dst.y = GunInHand.Dst.y + GunInHand.Dst.h / 2 - GunInHandFire.Dst.h / 2;
+
+	if (GunInHandFire.Anim->StopFrame == -1)
+		draw(GunInHandFire);
+	if (G_GetTicks() > (GunInHandFire.Anim->StartTime + GunInHandFire.Anim->FrameCount*GunInHandFire.Anim->FrameDuration))
+	{
+		GunInHandFire.Anim->stop();
+		GunInHand.Anim = &GunInHandAnim[Gun - 1][0];
+	}
+
 	for (int i = PlayerHealth; i < 3; i++)
 		draw(Health[i][0]);
 	for (int i = 0; i < PlayerHealth; i++)
 		draw(Health[i][1]);
-
+	for (int i = 0; i < MaxNumberOfZombieRot; i++)
+		if (G_GetTicks() < (ZombieRots[i].Anim->StartTime + ZombieRots[i].Anim->FrameCount*ZombieRots[i].Anim->FrameDuration))
+			draw(ZombieRots[i]);
+	for (int i = 0; i < MaxNumberOfBatRot; i++)
+		if (G_GetTicks() < (BatRots[i].Anim->StartTime + BatRots[i].Anim->FrameCount*BatRots[i].Anim->FrameDuration))
+			draw(BatRots[i]);
 	MovingMap.Update();
 
 
 	DoPhysics(&ThePlayer);
 
+	G_Rect GunKillingRange[10];
+
+	switch (Gun)
+	{
+	case DefaultGun:
+		GunKillingRange[0].x = ThePlayer.x + ThePlayer.Pos.w;
+		GunKillingRange[0].y = ThePlayer.y;
+		GunKillingRange[0].h = ThePlayer.Pos.h;
+		GunKillingRange[0].w = 300;
+		break;
+	}
+
+	if (Event == G_KEYDOWN && G_Keyboard == GK_RETURN&&GunInHandFire.Anim->StopFrame != -1)
+	{
+		GunInHandFire.Anim->stop();
+		GunInHandFire.Anim->play();
+		
+		switch (Gun)
+		{
+		case DefaultGun:
+			G_Rect ZombiePos, BatPos;
+			for (int i = 0; i < MaxNumberOfZombies; i++)
+			{
+				ZombiePos = Zombies[i].Pos;
+				ZombiePos.x = Zombies[i].x;
+				ZombiePos.y = Zombies[i].y;
+				GunInHand.Anim = &GunInHandAnim[Gun - 1][1];
+
+				if (Collided(GunKillingRange[0], ZombiePos))
+				{
+					ZombieRots[CounterZombieRots].Dst = Zombies[i].Pos;
+					ZombieRots[CounterZombieRots].Dst.x = Zombies[i].x;
+					ZombieRots[CounterZombieRots].Dst.y = Zombies[i].y;
+					ZombieRots[CounterZombieRots].Anim->stop();
+					ZombieRots[CounterZombieRots].Anim->play();
+
+					Zombies[i].x = -100;
+
+					CounterZombieRots++;
+					CounterZombieRots %= MaxNumberOfZombieRot;
+				}
+			}
+
+			for (int i = 0; i < MaxNumberOfBats; i++)
+			{
+				BatPos = Bats[i].Pos;
+				BatPos.x = Bats[i].x;
+				BatPos.y = Bats[i].y;
+
+				if (Collided(GunKillingRange[0], BatPos))
+				{
+					BatRots[CounterBatRots].Dst = Bats[i].Pos;
+					BatRots[CounterBatRots].Dst.x = Bats[i].x;
+					BatRots[CounterBatRots].Dst.y = Bats[i].y;
+					BatRots[CounterBatRots].Anim->stop();
+					BatRots[CounterBatRots].Anim->play();
+
+					Bats[i].x = -100;
+
+					CounterBatRots++;
+					CounterBatRots %= MaxNumberOfBatRot;
+				}
+			}
+			break;
+		}
+
+	}
+
+
+	/***************************************************************************************************************************/
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//                                               Start Of Generating Stuff
+	//
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	for (int i = 0; i < MaxNumberOfZombies; i++)
 	{
 		if ((Zombies[i].y > 600 || (Zombies[i].x + Zombies[i].Pos.w) < 0) && (rand() % 200) > 190)
 		{
 			if (rand() % 100 > 50 || MovingMap.Tiles[3].Terrain == Slope)
-				Zombies[i].x = rand() % 700 + 300;
+				Zombies[i].x = rand() % 600 + 400;
 			else
 			{
 				Zombies[i].x = MovingMap.Tiles[3].x + int(150 * 1.25) * 3 - Zombies[i].Pos.w;
@@ -1200,23 +1360,39 @@ void Play()
 
 	for (int i = 0; i < MaxNumberOfBats; i++)
 	{
-		if ((Bats[i].y > 600 || (Bats[i].x + Bats[i].Pos.w) < 0) && (rand() % 2000) > 1995)
+		if ((Bats[i].y > 600 || (Bats[i].x + Bats[i].Pos.w) < 0) && (rand() % 2000) > 1998)
 		{
 			Bats[i].y = rand() % 400;
 			Bats[i].x = 1500;
 			Bats[i].Vx = -MovingMap.v - BatSpeed;
+			AlreadyCollidedWithBats[i] = false;
 		}
 		draw(Bats[i]);
 		Bats[i].update_pos();
 	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//                                                 End Of Generating Stuff
+	//
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/***************************************************************************************************************************/
 
 	if (Event == G_KEYDOWN && G_Keyboard == GK_SPACE&&ThePlayer.IsOnFloor)
 	{
 		ThePlayer.Vy = -1;
 		ThePlayer.y -= 1;
 	}
+	
 	if (ThePlayer.y > 600)
 		PlayerHealth = 0;
+
+	/***************************************************************************************************************************/
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//                                            Start Of Checking For Jump Collision
+	//
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	G_Rect PlayerPos, ZombiePos, BatPos;
 	PlayerPos = ThePlayer.Pos;
@@ -1241,7 +1417,17 @@ void Play()
 			}
 			else if (ThePlayer.Vy > 0.0f)
 			{
-				Zombies[i].x = -100;
+				ZombieRots[CounterZombieRots].Dst = Zombies[i].Pos;
+				ZombieRots[CounterZombieRots].Dst.x = Zombies[i].x;
+				ZombieRots[CounterZombieRots].Dst.y = Zombies[i].y;
+				ZombieRots[CounterZombieRots].Anim->stop();
+				ZombieRots[CounterZombieRots].Anim->play();
+
+				Zombies[i].x = -100.0f;
+				ThePlayer.Vy = 0.0f;
+
+				CounterZombieRots++;
+				CounterZombieRots %= MaxNumberOfZombieRot;
 			}
 		}
 	}
@@ -1259,6 +1445,13 @@ void Play()
 		}
 	}
 
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//                                            End Of Checking For Jump Collision
+	//
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/***************************************************************************************************************************/
 	PauseBtn.Update();
 	if (PauseBtn.Puls)
 	{
