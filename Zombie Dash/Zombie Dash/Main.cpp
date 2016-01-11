@@ -36,6 +36,8 @@ static int PlayerHealth = 3;
 static int CounterZombieRots = 0;
 static int CounterBatRots = 0;
 static int Gun = DefaultGun;
+static int Kills = 0;
+static int Walked = 0;
 
 struct Animation
 {
@@ -729,6 +731,8 @@ Animation GunInHandFireAnim[NumberOfGun];
 MovingPic Box;
 Animation BoxAnim;
 
+bool AlreadyCollidedWithBox;
+
 
 bool Collided(G_Rect A, G_Rect B)
 {
@@ -1273,6 +1277,9 @@ void ResetGame()
 	Box.Vx = 0;
 	Box.Vy = 0;
 	Box.LastTick = G_GetTicks();
+
+	Kills = 0;
+	Walked = 0;
 }
 
 void Start()
@@ -1382,6 +1389,7 @@ void Play()
 
 					CounterZombieRots++;
 					CounterZombieRots %= MaxNumberOfZombieRot;
+					Kills++;
 				}
 			}
 
@@ -1404,6 +1412,7 @@ void Play()
 
 					CounterBatRots++;
 					CounterBatRots %= MaxNumberOfBatRot;
+					Kills++;
 				}
 			}
 			break;
@@ -1412,6 +1421,16 @@ void Play()
 	}
 
 
+	ThePlayer.Pos.x = ThePlayer.x;
+	ThePlayer.Pos.y = ThePlayer.y;
+
+	Box.ThePic.Dst.x = Box.x;
+	Box.ThePic.Dst.y = Box.y;
+
+	if (Collided(Box.ThePic.Dst, ThePlayer.Pos) && !AlreadyCollidedWithBox)
+	{
+		AlreadyCollidedWithBox = true;
+	}
 	/***************************************************************************************************************************/
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//
@@ -1460,8 +1479,10 @@ void Play()
 	Box.update_pos();
 
 	if ((rand() % 1000000) == 1242 && (Box.x + Box.ThePic.Dst.w) < 0)
+	{
+		AlreadyCollidedWithBox = false;
 		Box.x = 1100;
-
+	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//
 	//                                                 End Of Generating Stuff
@@ -1520,6 +1541,7 @@ void Play()
 
 				CounterZombieRots++;
 				CounterZombieRots %= MaxNumberOfZombieRot;
+				Kills++;
 			}
 		}
 	}
@@ -1574,6 +1596,7 @@ void Play()
 		GameState = Lost_Menu;
 		GameBCK.Pause();
 	}
+	Walked += ThePlayer.dt;
 }
 
 void Pause()
