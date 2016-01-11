@@ -22,12 +22,16 @@
 #define MaxNumberOfZombies		2
 #define MaxNumberOfBats			1
 #define MaxNumberOfZombieRot	10
-#define MaxNumberOfBatRot	10
+#define MaxNumberOfBatRot		10
 
 #define ZombieSpeed			0.05f
 #define BatSpeed			0.1f
 
 #define Gravity				0.0017f
+
+#define MaxBoxOption		2
+#define BoxHealth		1
+#define BoxSheild		2
 
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
@@ -38,6 +42,7 @@ static int CounterBatRots = 0;
 static int Gun = DefaultGun;
 static int Kills = 0;
 static int Walked = 0;
+static int BoxOption = BoxHealth;
 
 struct Animation
 {
@@ -730,9 +735,14 @@ Animation GunInHandFireAnim[NumberOfGun];
 
 MovingPic Box;
 Animation BoxAnim;
-
 bool AlreadyCollidedWithBox;
 
+Pic HealthBox;
+Animation HealthBoxAnim;
+
+Pic ShieldBox;
+Animation ShieldBoxAnim;
+bool ShieldBoxOn = false;
 
 bool Collided(G_Rect A, G_Rect B)
 {
@@ -1109,7 +1119,7 @@ void load()
 		Health[i][0].Dst.h = 62;
 		Health[i][1].Dst.w = 62;
 		Health[i][1].Dst.h = 62;
-		Health[i][0].Dst.x = 1000-(3-i)* 70;
+		Health[i][0].Dst.x = 1000 - (3 - i) * 70;
 		Health[i][0].Dst.y = 5;
 		Health[i][1].Dst.x = 1000 - (3 - i) * 70;
 		Health[i][1].Dst.y = 5;
@@ -1155,6 +1165,20 @@ void load()
 	Box.y = 100;
 	Box.ThePic.Dst.w = 60 * 1.25;
 	Box.ThePic.Dst.h = 50 * 1.25;
+
+	ShieldBoxAnim.load("Pics\\SheildBox.png", 2, 100, 0, 0, 400, 144);
+
+	ShieldBox.Anim = &ShieldBoxAnim;
+	ShieldBox.Dst.w = 200 * 1.25;
+	ShieldBox.Dst.h = 144 * 1.25;
+
+	HealthBoxAnim.load("Pics\\HealthBox.png", 2, 100, 0, 0, 100, 50);
+
+	HealthBox.Anim = &HealthBoxAnim;
+	HealthBox.Dst.w = 50 * 1.25;
+	HealthBox.Dst.h = 50 * 1.25;
+
+
 }
 
 void Init()
@@ -1208,7 +1232,7 @@ void ResetGame()
 	ThePlayer.Ax = 0;
 	ThePlayer.Ay = Gravity;
 
-	ThePlayer.x = 50;
+	ThePlayer.x = 100;
 	ThePlayer.y = 500 - MovingMap.GetY(ThePlayer.x + ThePlayer.Pos.w / 2);
 
 	PlayerHealth = 3;
@@ -1280,6 +1304,10 @@ void ResetGame()
 
 	Kills = 0;
 	Walked = 0;
+
+	AlreadyCollidedWithBox = false;
+	HealthBox.Anim->stop();
+	ShieldBox.Anim->stop();
 }
 
 void Start()
@@ -1315,7 +1343,6 @@ void Play()
 	GunInHandFire.Dst.x = GunInHand.Dst.x + GunInHand.Dst.w;
 	GunInHandFire.Dst.y = GunInHand.Dst.y + GunInHand.Dst.h / 2 - GunInHandFire.Dst.h / 2;
 
-	draw(Box);
 
 	if (GunInHandFire.Anim->StopFrame == -1)
 		draw(GunInHandFire);
@@ -1426,10 +1453,49 @@ void Play()
 
 	Box.ThePic.Dst.x = Box.x;
 	Box.ThePic.Dst.y = Box.y;
+	
+	if(!AlreadyCollidedWithBox)
+		draw(Box);
 
 	if (Collided(Box.ThePic.Dst, ThePlayer.Pos) && !AlreadyCollidedWithBox)
 	{
+		if (rand() % 1000 < 500 && PlayerHealth<3)
+			BoxOption = BoxHealth;
+		else
+			BoxOption = BoxSheild;
+		switch (BoxOption)
+		{
+		case BoxHealth:
+			HealthBox.Anim->stop();
+			HealthBox.Anim->play();
+			PlayerHealth++;
+			break;
+
+		case BoxSheild:
+			ShieldBox.Anim->stop();
+			ShieldBox.Anim->play();
+			ShieldBoxOn = true;
+			break;
+			
+		}
+
 		AlreadyCollidedWithBox = true;
+	}
+
+	if (G_GetTicks() - ShieldBox.Anim->StartTime < 15000 && AlreadyCollidedWithBox)
+	{
+		ShieldBox.Dst.x = ThePlayer.Pos.x + ThePlayer.Pos.w / 2 - ShieldBox.Dst.w / 2 - 25;
+		ShieldBox.Dst.y = ThePlayer.Pos.y + ThePlayer.Pos.h / 2 - ShieldBox.Dst.h / 2;
+		draw(ShieldBox);
+	}
+	else
+		ShieldBoxOn = false;
+
+	if (G_GetTicks() - HealthBox.Anim->StartTime < 300)
+	{
+		HealthBox.Dst.x = Box.ThePic.Dst.x;
+		HealthBox.Dst.y = Box.ThePic.Dst.y;
+		draw(HealthBox);
 	}
 	/***************************************************************************************************************************/
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1521,10 +1587,25 @@ void Play()
 		{
 			if (ThePlayer.IsOnFloor)
 			{
-				if (!AlreadyCollided[i])
+				if (!AlreadyCollided[i] && !ShieldBoxOn)
 				{
 					PlayerHealth--;
 					AlreadyCollided[i] = true;
+				}
+				if (ShieldBoxOn)
+				{
+					ZombieRots[CounterZombieRots].ThePic.Dst = Zombies[i].Pos;
+					ZombieRots[CounterZombieRots].x = Zombies[i].x;
+					ZombieRots[CounterZombieRots].y = Zombies[i].y;
+					ZombieRots[CounterZombieRots].ThePic.Anim->stop();
+					ZombieRots[CounterZombieRots].ThePic.Anim->play();
+					ZombieRots[CounterZombieRots].LastTick = G_GetTicks();
+
+					Zombies[i].x = -100;
+
+					CounterZombieRots++;
+					CounterZombieRots %= MaxNumberOfBatRot;
+					Kills++;
 				}
 			}
 			else if (ThePlayer.Vy > 0.0f)
@@ -1552,11 +1633,27 @@ void Play()
 		BatPos.x = Bats[i].x;
 		BatPos.y = Bats[i].y;
 
-		if (Collided(PlayerPos, BatPos) && !AlreadyCollidedWithBats[i])
+		if (Collided(PlayerPos, BatPos) && !AlreadyCollidedWithBats[i] && !ShieldBoxOn)
 		{
 			PlayerHealth--;
 			AlreadyCollidedWithBats[i] = true;
 		}
+		if (ShieldBoxOn)
+		{
+			BatRots[CounterBatRots].ThePic.Dst = Bats[i].Pos;
+			BatRots[CounterBatRots].x = Bats[i].x;
+			BatRots[CounterBatRots].y = Bats[i].y;
+			BatRots[CounterBatRots].ThePic.Anim->stop();
+			BatRots[CounterBatRots].ThePic.Anim->play();
+			BatRots[CounterBatRots].LastTick = G_GetTicks();
+
+			Bats[i].x = -100;
+
+			CounterBatRots++;
+			CounterBatRots %= MaxNumberOfBatRot;
+			Kills++;
+		}
+
 	}
 
 
