@@ -36,6 +36,8 @@
 #define BoxHealth			1
 #define BoxSheild			2
 
+#define MaxSizeNumber		8
+
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
 static int MapID;
@@ -751,6 +753,9 @@ Uint32 SheildStartTime;
 Pic BatAlarm;
 Animation BatAlarmAnim;
 
+Animation NumbersAnim[12];
+Pic NumberYouRan[MaxSizeNumber];
+
 bool Collided(G_Rect A, G_Rect B)
 {
 	return (!(A.x > (B.x + B.w) || B.x > (A.x + A.w)) && !(A.y > (B.y + B.h) || B.y > (A.y + A.h)));
@@ -834,6 +839,15 @@ void draw(drawable inp)
 	}
 }
 
+void FillNumbers(Animation* NumbersFont, Pic* NumberFilled, int number)
+{
+	for (int i = MaxSizeNumber - 2; i >= 0; i--)
+	{
+		NumberFilled[i].Anim = &NumbersAnim[number % 10];
+		number /= 10;
+	}
+}
+
 void load()
 {
 	MapID = rand() % 5;
@@ -857,15 +871,15 @@ void load()
 
 	GuyInStartMenuAnim.load("Pics\\man.png", 1, 100, 0, 0, 182, 251);
 	GuyInStartMenu.Anim = &GuyInStartMenuAnim;
-	GuyInStartMenu.Dst.w = 182*1.25;
-	GuyInStartMenu.Dst.h = 251*1.25;
+	GuyInStartMenu.Dst.w = 182 * 1.25;
+	GuyInStartMenu.Dst.h = 251 * 1.25;
 	GuyInStartMenu.Dst.x = 659;
 	GuyInStartMenu.Dst.y = 200;
 
 	LogoInStartMenuAnim.load("Pics\\logo.png", 1, 100, 0, 0, 511, 228);
 	LogoInStartMenu.Anim = &LogoInStartMenuAnim;
-	LogoInStartMenu.Dst.w = 511*1.25;
-	LogoInStartMenu.Dst.h = 228*1.25;
+	LogoInStartMenu.Dst.w = 511 * 1.25;
+	LogoInStartMenu.Dst.h = 228 * 1.25;
 	LogoInStartMenu.Dst.x = 175;
 	LogoInStartMenu.Dst.y = 100;
 
@@ -973,7 +987,7 @@ void load()
 		Bats[i].Pos.w = 48 * 1.25;
 		Bats[i].Pos.h = 58 * 1.25;
 	}
-	
+
 
 	ShadeAnim.load("Pics\\Shade.png", 1, 100, 0, 0, 10, 10);
 	Shade.Pic = &ShadeAnim;
@@ -983,7 +997,7 @@ void load()
 	ResumeBtnPause.States[0] = &ResumeBtnPauseAnim;
 	ResumeBtnPause.States[1] = &ResumeBtnPauseAnim;
 	ResumeBtnPause.States[2] = &ResumeBtnPauseAnimPressed;
-	
+
 	ResumeBtnPause.Dst.x = 400;
 	ResumeBtnPause.Dst.y = 75;
 	ResumeBtnPause.Dst.w = 200 * 1.25;
@@ -1016,7 +1030,7 @@ void load()
 	GameBCKAnim[2].load("Pics\\Background3.jpg", 1, 100, 0, 0, 900, 505);
 	GameBCKAnim[3].load("Pics\\Background4.jpg", 1, 100, 0, 0, 900, 505);
 	GameBCKAnim[4].load("Pics\\Background5.jpg", 1, 100, 0, 0, 900, 505);
-	
+
 	GameBCK.Pic = &GameBCKAnim[MapID];
 
 	GameBCK.v = 0.05;
@@ -1127,9 +1141,9 @@ void load()
 		Health[i][1].Dst.w = 62;
 		Health[i][1].Dst.h = 62;
 		Health[i][0].Dst.x = 1000 - (3 - i) * 70;
-		Health[i][0].Dst.y = 5;
+		Health[i][0].Dst.y = 50;
 		Health[i][1].Dst.x = 1000 - (3 - i) * 70;
-		Health[i][1].Dst.y = 5;
+		Health[i][1].Dst.y = 50;
 	}
 
 	for (int i = 0; i < MaxNumberOfZombieRot; i++)
@@ -1188,7 +1202,17 @@ void load()
 	BatAlarmAnim.load("Pics\\bat_alert.png", 2, 100, 0, 0, 128, 56);
 	BatAlarm.Anim = &BatAlarmAnim;
 	BatAlarmAnim.play();
-	
+
+	for (int i = 0; i < 12; i++)
+	{
+		NumbersAnim[i].load("Pics\\Numbers.png", 1, 100, i * 36, 0, 36, 44);
+	}
+
+	for (int i = 0; i < 8; i++)
+	{
+		NumberYouRan[i].Dst.w = 30;
+		NumberYouRan[i].Dst.h = 40;
+	}
 }
 
 void Init()
@@ -1361,6 +1385,16 @@ void Play()
 		GunInHandFire.Anim->stop();
 		GunInHand.Anim = &GunInHandAnim[Gun - 1][0];
 	}
+
+	FillNumbers(NumbersAnim, NumberYouRan, Walked/100);
+	NumberYouRan[MaxSizeNumber - 1].Anim = &NumbersAnim[10];
+	for(int i = 8 - 1; i >= 0; i--)
+	{
+		NumberYouRan[i].Dst.x = 1000 - (8 - i) * 30;
+		NumberYouRan[i].Dst.y = 5;
+		draw(NumberYouRan[i]);
+	}
+
 
 	for (int i = PlayerHealth; i < 3; i++)
 		draw(Health[i][0]);
@@ -1904,7 +1938,6 @@ void ClearExit()
 {
 
 }
-
 
 
 
