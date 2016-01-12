@@ -54,6 +54,7 @@ static int Gun = DefaultGun;
 static int Kills = 0;
 static int Walked = 0;
 static int BoxOption = BoxHealth;
+static int CoinCount = 0;
 
 struct Animation
 {
@@ -780,6 +781,15 @@ Animation CoinAnim;
 MovingPic Obstacle;
 Animation ObstacleAnim;
 
+MovingPic BoxLine;
+Animation BoxLineAnim;
+
+Pic HealthInBox;
+Animation HealthInBoxAnim;
+
+Pic ShieldInBox;
+Animation ShieldInBoxAnim;
+
 void KillEveryThing()
 {
 	for (int i = 0; i < MaxNumberOfZombies; i++)
@@ -812,18 +822,6 @@ void KillEveryThing()
 		CounterBatRots %= MaxNumberOfBatRot;
 	}
 }
-
-Animation NumbersAnim[12];
-Pic NumberYouRan[MaxSizeNumber];
-
-MovingPic BoxLine;
-Animation BoxLineAnim;
-
-Pic HealthInBox;
-Animation HealthInBoxAnim;
-
-Pic ShieldInBox;
-Animation ShieldInBoxAnim;
 
 bool Collided(G_Rect A, G_Rect B)
 {
@@ -1520,6 +1518,7 @@ void ResetGame()
 
 	Kills = 0;
 	Walked = 0;
+	CoinCount = 0;
 
 	ShieldBoxOn = false;
 	HealthBox.Anim->stop();
