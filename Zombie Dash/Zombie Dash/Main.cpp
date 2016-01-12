@@ -326,7 +326,7 @@ struct drawable
 				Dst = &inp.TempDst;
 
 				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
-				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
+				CurrentPositon = inp.MovingLeft ? Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w : ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
 
 				int CurrentPositionDst = int(CurrentPositon*Dst->w / Src->w);
 
@@ -351,7 +351,7 @@ struct drawable
 				Dst = &inp.TempDst;
 
 				int CurrentPositon = int(inp.v*(G_GetTicks() - inp.StartTime)) % Src->w;
-				CurrentPositon = Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
+				CurrentPositon = inp.MovingLeft ? Src->w - ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w : ((inp.Playing ? CurrentPositon : 0) + inp.PausedPosition) % Src->w;
 
 				int CurrentPositionDst = int(CurrentPositon*Dst->w / Src->w);
 
