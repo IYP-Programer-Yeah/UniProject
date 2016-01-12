@@ -2038,6 +2038,8 @@ void Play()
 						if (!MovingMap.CountedForAir)
 						{
 							MovingMap.CountedForAir = true;
+							if (!ThePlayerInjurySound.State)
+								ThePlayerInjurySound.play();
 							PlayerHealth--;
 						}
 					}
@@ -2045,7 +2047,11 @@ void Play()
 
 
 	if (MovingMap.IsObstacle(ThePlayer.x) && !ShieldBoxOn&&ThePlayer.IsOnFloor)
+	{
 		PlayerHealth--;
+		if (!ThePlayerInjurySound.State)
+			ThePlayerInjurySound.play();
+	}
 	if (MovingMap.HasObstacle(ThePlayer.x) && !ShieldBoxOn&&ThePlayer.IsOnFloor)
 		GonnaGetInjured = true;
 	
@@ -2299,16 +2305,18 @@ void Play()
 				if (CurrentCoinFormtion[i].Board[j][k])
 					draw(CurrentCoinFormtion[i].Coin[j][k]);
 				CurrentCoinFormtion[i].Coin[j][k].update_pos();
-				if (Collided(ThePlayer.Pos, CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst))
+				if (Collided(ThePlayer.Pos, CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst)&& CurrentCoinFormtion[i].Board[j][k])
 				{
 					CurrentCoinFormtion[i].Board[j][k] = false;
 					CoinCount++;
 					TottalScore++;
+					if (!CoinSound.State)
+						CoinSound.play();
+				}
 			}
+		}
 	}
-	}
-	}
-
+	CoinSound.update();
 	for (int i = PlayerHealth; i < 3; i++)
 		draw(Health[i][0]);
 	for (int i = 0; i < PlayerHealth; i++)
