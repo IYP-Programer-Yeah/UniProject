@@ -55,6 +55,7 @@ static int Kills = 0;
 static int Walked = 0;
 static int BoxOption = BoxHealth;
 static int CoinCount = 0;
+static int MaxRan = 0;
 
 struct Animation
 {
@@ -729,9 +730,11 @@ Animation NewRecordAnim;
 
 Pic YouKill;
 Animation YouKillAnim;
+Pic YouKillNumber[MaxSizeNumber];
 
 Pic YouRan;
 Animation YouRanAnim;
+Pic YouRanNumber[MaxSizeNumber];
 
 Pic GameOverLine;
 Animation GameOverLineAnim;
@@ -789,6 +792,77 @@ Animation HealthInBoxAnim;
 
 Pic ShieldInBox;
 Animation ShieldInBoxAnim;
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+//
+//											Music
+//
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+struct SoundStr
+{
+	G_Sound *SoundPtr;
+	int Loop;
+	bool State;
+	Uint32 StartTime;
+	int Duration;
+
+	SoundStr()
+	{
+		State = false;
+	}
+
+	void load(char* path, int duration, int loop = 0)
+	{
+		G_LoadSound(path);
+		Loop = loop;
+		Duration = duration;
+	}
+
+	void pause()
+	{
+		State = false;
+		G_PauseSound();
+	}
+
+	void play()
+	{
+		StartTime = G_GetTicks();
+		State = true;
+		if (Sound.Checked)
+			G_PlaySound(SoundPtr, Loop);
+	}
+
+	void update()
+	{
+		if (G_GetTicks() - StartTime > Duration)
+		{
+			State = false;
+		}
+	}
+};
+
+
+G_Music *BackgroundMusic[4];
+SoundStr BatSound;
+SoundStr CoinSound;
+SoundStr GameOverSound;
+SoundStr GirlInjurySound;
+SoundStr GuyInjurySound;
+SoundStr ThePlayerInjurySound;
+SoundStr GunFireSound[NumberOfGun];
+SoundStr JumpSound;
+SoundStr NewRecordSound;
+SoundStr StartLogoSound;
+SoundStr ZombieKilledSound;
+
+
+
+void PlayMusic(G_Music *inp, int loop = 0)
+{
+	if (Music.Checked)
+		G_PlayMusic(inp, loop);
+}
 
 void KillEveryThing()
 {
@@ -1054,7 +1128,7 @@ void load()
 		Bats[i].Pos.w = 48 * 1.25;
 		Bats[i].Pos.h = 58 * 1.25;
 	}
-	
+
 
 	ShadeAnim.load("Pics\\Shade.png", 1, 100, 0, 0, 10, 10);
 	Shade.Pic = &ShadeAnim;
@@ -1064,7 +1138,7 @@ void load()
 	ResumeBtnPause.States[0] = &ResumeBtnPauseAnim;
 	ResumeBtnPause.States[1] = &ResumeBtnPauseAnim;
 	ResumeBtnPause.States[2] = &ResumeBtnPauseAnimPressed;
-	
+
 	ResumeBtnPause.Dst.x = 400;
 	ResumeBtnPause.Dst.y = 75;
 	ResumeBtnPause.Dst.w = 200 * 1.25;
@@ -1097,7 +1171,7 @@ void load()
 	GameBCKAnim[2].load("Pics\\Background3.jpg", 1, 100, 0, 0, 900, 505);
 	GameBCKAnim[3].load("Pics\\Background4.jpg", 1, 100, 0, 0, 900, 505);
 	GameBCKAnim[4].load("Pics\\Background5.jpg", 1, 100, 0, 0, 900, 505);
-	
+
 	GameBCK.Pic = &GameBCKAnim[MapID];
 
 	GameBCK.v = 0.05;
@@ -1269,7 +1343,7 @@ void load()
 	BatAlarmAnim.load("Pics\\bat_alert.png", 2, 100, 0, 0, 128, 56);
 	BatAlarm.Anim = &BatAlarmAnim;
 	BatAlarmAnim.play();
-	
+
 	for (int i = 0; i < 12; i++)
 	{
 		NumbersAnim[i].load("Pics\\Numbers.png", 1, 100, i * 36, 0, 36, 44);
@@ -1280,6 +1354,25 @@ void load()
 		NumberYouRan[i].Dst.w = 30;
 		NumberYouRan[i].Dst.h = 40;
 	}
+
+	for (int i = 0; i < 8; i++)
+	{
+		YouRanNumber[i].Dst.w = 30;
+		YouRanNumber[i].Dst.h = 40;
+	}
+
+	for (int i = 0; i < 8; i++)
+	{
+		YouRanNumber[i].Dst.w = 30;
+		YouRanNumber[i].Dst.h = 40;
+	}
+
+	for (int i = 0; i < 8; i++)
+	{
+		YouKillNumber[i].Dst.w = 30;
+		YouKillNumber[i].Dst.h = 40;
+	}
+
 
 
 	BoxLineAnim.load("Pics\\BoxLine.png", 4, 80, 0, 0, 3600, 100);
@@ -1292,7 +1385,7 @@ void load()
 	BoxLine.ThePic.Dst.h = 100;
 	BoxLine.x = -1000;
 	BoxLine.y = 200;
-	
+
 	HealthInBoxAnim.load("Pics\\HealthInBox.png", 1, 100, 0, 0, 40, 40);
 	HealthInBox.Anim = &HealthInBoxAnim;
 	HealthInBox.Dst.x = 450;
@@ -1310,19 +1403,53 @@ void load()
 	ObstacleAnim.load("Pics\\Obstacle.png", 1, 100, 0, 0, 50, 50);
 	Obstacle.ThePic.Anim = &ObstacleAnim;
 
-
 	CoinAnim.load("Pics\\Coin.png", 1, 100, 0, 0, 25, 25);
 
 	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
 	{
-		for(int j = 0; j < 10; j++)
+		for (int j = 0; j < 10; j++)
 			for (int k = 0; k < 10; k++)
 			{
 				CurrentCoinFormtion[i].Coin[j][k].ThePic.Anim = &CoinAnim;
 				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.w = 30;
 				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.h = 30;
-}
+			}
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+	//
+	//								Music
+	//
+	//////////////////////////////////////////////////////////////////////////
+
+	{
+		char Path[23] = "Sounds\\Background1.mp3";
+		for (int i = 0; i < 4; i++)
+		{
+			Path[18] = '1' + i;
+			BackgroundMusic[i] = G_LoadMusic(Path);
+		}
+	}
+
+	GirlInjurySound.load("Sounds\\GirlInjury.mp3",960);
+	GuyInjurySound.load("Sounds\\GuyInjury.mp3",960);
+	ThePlayerInjurySound = GuyInjurySound;
+	
+	{
+		char Path[20] = "Sounds\\GunFire1.mp3";
+		for (int i = 0; i < NumberOfGun; i++)
+		{
+			Path[15] = '1' + i;
+			GunFireSound[i].load(Path,1560);
+		}
+	}
+	BatSound.load("Sounds\\Bat.mp3",1800);
+	CoinSound.load("Sounds\\Coin.mp3",960);
+	GameOverSound.load("Sounds\\GameOver.mp3",1560);
+	JumpSound.load("Sounds\\Jump.mp3",40);
+	NewRecordSound.load("Sounds\\NewRecord.mp3",1680);
+	StartLogoSound.load("Sounds\\StartLogo.mp3",1400);
+	ZombieKilledSound.load("Sounds\\ZombieKilled.mp3",880);
 
 }
 
@@ -1538,8 +1665,17 @@ void Start()
 	Sound.Update();
 	Music.Update();
 
+	if (!Music.Checked)
+		G_StopMusic();
+
+	if (!Sound.Checked)
+		G_PauseSound();
+
 	if (StartButton.Puls)
+	{
 		GameState = Player_Menu;
+		PlayMusic(BackgroundMusic[rand() % 4], -1);
+	}
 }
 
 void WhatsInTheBox()
@@ -1581,6 +1717,7 @@ void WhatsInTheBox()
 			BatAlarm.Dst.w = BatAlarm.Dst.h;
 			BatAlarm.Dst.x = 1000 - BatAlarm.Dst.w;
 			draw(BatAlarm);
+
 		}
 	}
 
@@ -1922,7 +2059,12 @@ void Play()
 			BatAlarm.Dst.w = BatAlarm.Dst.h;
 			BatAlarm.Dst.x = 1000 - BatAlarm.Dst.w;
 			draw(BatAlarm);
+			if(!BatSound.State)
+			{
+				BatSound.play();
+			}
 		}
+		BatSound.update();
 
 		Bats[i].update_pos();
 	}
@@ -2078,6 +2220,8 @@ void Play()
 
 	if (PlayerHealth == 0)
 	{
+		FillNumbers(NumbersAnim, YouKillNumber, Kills);
+		FillNumbers(NumbersAnim, YouRanNumber, Walked/100);
 		GameState = Lost_Menu;
 		GameBCK.Pause();
 	}
@@ -2239,10 +2383,17 @@ void ChoosePlayer()
 	if (PlayBtnPlayerSelection.Puls)
 	{
 		if (BoySelection.Checked)
+		{
+			ThePlayerInjurySound = GuyInjurySound;
 			ThePlayer.Anim = &TheGuyAnim;
+		}
+
 		if (GirlSelection.Checked)
+		{
+			ThePlayerInjurySound = GirlInjurySound;
 			ThePlayer.Anim = &TheGirlAnim;
-		
+		}
+
 		ResetGame();
 
 		GameState = Play_Mode;
@@ -2293,16 +2444,38 @@ void Lost()
 	if ((Box.x + Box.ThePic.Dst.w) > 0)
 		draw(Box);
 
+	for (int i = 8 - 1; i >= 0; i--)
+	{
+		NumberYouRan[i].Dst.x = 1000 - (8 - i) * 30;
+		NumberYouRan[i].Dst.y = 5;
+		draw(NumberYouRan[i]);
+	}
+
 	draw(Shade);
 	draw(GameOverLine);
 	draw(GameOver);
+
 	draw(YouKill);
+	for (int i = 8 - 2; i >= 6 - floor(log10(Walked / 100)); i--)
+	{
+		YouKillNumber[i].Dst.x = 730 - (8 - i) * 30;
+		YouKillNumber[i].Dst.y = 365;
+		draw(YouKillNumber[i]);
+	}
+
 	draw(YouRan);
+	for (int i = 8 - 2; i >= 6 - floor(log10(Walked / 100)); i--)
+	{
+		YouRanNumber[i].Dst.x = 720 - (8 - i) * 30;
+		YouRanNumber[i].Dst.y = 415;
+		draw(YouRanNumber[i]);
+	}
+
 	draw(MenuBtnLost);
 	draw(AgainBtnLost);
 
 
-	if (true/*Record more than max record*/)
+	if (MaxRan < (Walked / 100))
 	{
 		draw(NewRecord);
 	}
@@ -2312,13 +2485,21 @@ void Lost()
 
 	if (MenuBtnLost.Puls)
 	{
-		ResetGame();
 		GameState = Start_Menu;
+		if (MaxRan < (Walked / 100))
+		{
+			MaxRan = Walked / 100;
+		}
+		ResetGame();
 	}
 	if (AgainBtnLost.Puls)
 	{
-		ResetGame();
 		GameState = Play_Mode;
+		if (MaxRan < (Walked / 100))
+		{
+			MaxRan = Walked / 100;
+		}
+		ResetGame();
 	}
 
 }
