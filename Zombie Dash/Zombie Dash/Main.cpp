@@ -44,7 +44,7 @@
 
 #define WhatsInBoxDuration		2000
 
-#define MaxObstacle				2
+#define MaxObstacle				1
 
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
@@ -487,6 +487,13 @@ struct Tile
 	int h;
 	float x;
 	int Terrain;
+	bool HasObstacle;
+	bool counted;
+
+	bool HasAirObsticale;
+
+	int AirObstacleX;
+	int AirObstacleY;
 };
 
 void draw(drawable inp);
@@ -499,6 +506,13 @@ struct Map
 
 	Pic TileStyles[3];
 
+	Pic FloorObstacle;
+	Pic AirObstacle;
+
+	bool ThereIsAirObstacle;
+
+	bool CountedForAir;
+
 	void Reset()
 	{
 		int temp_height = rand() % int(278 * 1.25 - 75) + 75;
@@ -507,8 +521,14 @@ struct Map
 			Tiles[i].x = i*int(150 * 1.25) * 3;
 			Tiles[i].h = temp_height;
 			Tiles[i].Terrain = Road;
+			Tiles[i].HasObstacle = false;
+			Tiles[i].counted = false;
+			Tiles[i].HasAirObsticale = false;
 		}
 		LastTick = G_GetTicks();
+		AirObstacle.Dst.h = 200;
+		AirObstacle.Dst.w = 100;
+		CountedForAir = false;
 	}
 
 	void Update()
@@ -536,6 +556,32 @@ struct Map
 
 			if (Tiles[3].Terrain == Slope&&Tiles[3].h<int(175 * 1.25))
 				Tiles[3].Terrain = Cliff;
+
+			if (Tiles[3].Terrain == Road && (rand() % 4) == 0)
+				Tiles[3].HasObstacle = true;
+			else
+				Tiles[3].HasObstacle = false;
+
+			ThereIsAirObstacle = false;
+
+			for (int i = 0; i < 4; i++)
+				if (Tiles[3].HasAirObsticale)
+					ThereIsAirObstacle = true;
+
+			if ((rand() % 4) == 2 && !ThereIsAirObstacle)
+			{
+				Tiles[3].HasAirObsticale = true;
+				Tiles[3].AirObstacleX = rand() % (int(150 * 1.25) * 3 - AirObstacle.Dst.w);
+				Tiles[3].AirObstacleY = rand() % 200;
+				AirObstacle.Anim->stop();
+				if (rand() % 4 > 0)
+					AirObstacle.Anim->play();
+				CountedForAir = false;
+			}
+			else
+				Tiles[3].HasAirObsticale = false;
+			Tiles[3].counted = false;
+			
 		}
 	}
 
@@ -553,6 +599,12 @@ struct Map
 				{
 					TileStyles[0].Dst.x = Tiles[i].x + int(150 * 1.25)*j;
 					draw(TileStyles[0]);
+					if (Tiles[i].HasObstacle&&j == 1)
+					{
+						FloorObstacle.Dst = TileStyles[0].Dst;
+						FloorObstacle.Dst.h = 100;
+						draw(FloorObstacle);
+					}
 				}
 
 				break;
@@ -596,6 +648,12 @@ struct Map
 
 				break;
 			}
+			if (Tiles[i].HasAirObsticale)
+			{
+				AirObstacle.Dst.x = Tiles[i].x + Tiles[i].AirObstacleX;
+				AirObstacle.Dst.y = 600 - Tiles[i].h - Tiles[i].AirObstacleY - AirObstacle.Dst.h;
+				draw(AirObstacle);
+			}
 		}
 	}
 	
@@ -636,6 +694,25 @@ struct Map
 					break;
 				}
 			}
+	}
+	bool IsObstacle(int X)
+	{
+		for (int i = 0; i < 3; i++)
+			if (Tiles[i].HasObstacle)
+				if (int(Tiles[i].x) + int(150 * 1.25) <= X && (int(Tiles[i].x) + int(150 * 1.25) * 2) >= X&&!Tiles[i].counted)
+				{
+					Tiles[i].counted = true;
+					return true;
+				}
+		return 0;
+	}
+	bool HasObstacle(int X)
+	{
+		for (int i = 0; i < 3; i++)
+			if (Tiles[i].HasObstacle)
+				if (int(Tiles[i].x) + int(150 * 1.25) <= X && (int(Tiles[i].x) + int(150 * 1.25) * 2) >= X)
+					return true;
+		return 0;
 	}
 };
 
@@ -784,8 +861,8 @@ Formation CoinFormations[MaxCoinFormationNumber];
 Formation CurrentCoinFormtion[MaxCountOfCoinsInScene];
 Animation CoinAnim;
 
-MovingPic Obstacle;
 Animation ObstacleAnim;
+Animation AirObstaleAnim;
 
 MovingPic BoxLine;
 Animation BoxLineAnim;
@@ -798,7 +875,6 @@ Animation ShieldInBoxAnim;
 
 Background BeingInjured;
 Animation BeingInjuredAnim;
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -1408,7 +1484,12 @@ void load()
 	ShieldInBox.Dst.h = 100;
 
 	ObstacleAnim.load("Pics\\Obstacle.png", 1, 100, 0, 0, 50, 50);
-	Obstacle.ThePic.Anim = &ObstacleAnim;
+
+	MovingMap.FloorObstacle.Anim = &ObstacleAnim;
+
+	AirObstaleAnim.load("Pics\\tanab.png", 3, 1000, 0, 0, 189, 150);
+
+	MovingMap.AirObstacle.Anim = &AirObstaleAnim;
 
 	CoinAnim.load("Pics\\Coin.png", 1, 100, 0, 0, 25, 25);
 
@@ -1900,10 +1981,39 @@ void Play()
 			BatRots[i].Vx = -MovingMap.v;
 			BatRots[i].update_pos();
 		}
+
 	MovingMap.Update();
 
-
 	DoPhysics(&ThePlayer);
+
+	ThePlayer.Pos.x = ThePlayer.x;
+	ThePlayer.Pos.y = ThePlayer.y;
+
+	for (int i = 0; i < 4; i++)
+		if (MovingMap.Tiles[i].HasAirObsticale)
+		{
+			MovingMap.AirObstacle.Dst.x = MovingMap.Tiles[i].x + MovingMap.Tiles[i].AirObstacleX;
+			MovingMap.AirObstacle.Dst.y = 600 - MovingMap.Tiles[i].h - MovingMap.Tiles[i].AirObstacleY - MovingMap.AirObstacle.Dst.h;
+			if (Collided(MovingMap.AirObstacle.Dst, ThePlayer.Pos) && !ShieldBoxOn)
+				if (MovingMap.AirObstacle.Anim->StopFrame == -1)
+					if (((G_GetTicks() - MovingMap.AirObstacle.Anim[0].StartTime) / MovingMap.AirObstacle.Anim[0].FrameDuration + MovingMap.AirObstacle.Anim[0].PausedFrame) % MovingMap.AirObstacle.Anim[0].FrameCount>0)
+					{
+						GonnaGetInjured = true;
+						if (!MovingMap.CountedForAir)
+						{
+							MovingMap.CountedForAir = true;
+							PlayerHealth--;
+						}
+					}
+		}
+
+
+	if (MovingMap.IsObstacle(ThePlayer.x) && !ShieldBoxOn&&ThePlayer.IsOnFloor)
+		PlayerHealth--;
+	if (MovingMap.HasObstacle(ThePlayer.x) && !ShieldBoxOn&&ThePlayer.IsOnFloor)
+		GonnaGetInjured = true;
+	
+
 
 	G_Rect GunKillingRange[10];
 
@@ -1979,10 +2089,6 @@ void Play()
 
 	}
 
-
-	ThePlayer.Pos.x = ThePlayer.x;
-	ThePlayer.Pos.y = ThePlayer.y;
-
 	Box.ThePic.Dst.x = Box.x;
 	Box.ThePic.Dst.y = Box.y;
 	
@@ -2040,6 +2146,12 @@ void Play()
 			if (ShieldBoxOn)
 				ShieldBox.Anim->pause();
 			BatAlarmAnim.pause();
+			for (int i = 0; i < 4; i++)
+				if (MovingMap.Tiles[i].HasAirObsticale)
+				{
+					MovingMap.Tiles[i].HasAirObsticale = false;
+					MovingMap.Tiles[i].HasObstacle = false;
+				}
 		}
 	}
 
@@ -2144,8 +2256,8 @@ void Play()
 					CurrentCoinFormtion[i].Board[j][k] = false;
 					CoinCount++;
 					TottalScore++;
+				}
 			}
-	}
 	}
 
 	for (int i = PlayerHealth; i < 3; i++)
@@ -2281,6 +2393,7 @@ void Play()
 			SheildStartTime = G_GetTicks() - SheildStartTime;
 		}
 		BatAlarmAnim.pause();
+		MovingMap.AirObstacle.Anim->pause();
 	}
 
 	if (PlayerHealth == 0)
