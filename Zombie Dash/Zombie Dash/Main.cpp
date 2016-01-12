@@ -796,6 +796,10 @@ Animation HealthInBoxAnim;
 Pic ShieldInBox;
 Animation ShieldInBoxAnim;
 
+Background BeingInjured;
+Animation BeingInjuredAnim;
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 //
 //											Music
@@ -866,11 +870,6 @@ void PlayMusic(G_Music *inp, int loop = 0)
 	if (Music.Checked)
 		G_PlayMusic(inp, loop);
 }
-
-Background BeingInjured;
-Animation BeingInjuredAnim;
-
-MovingPic Obstacle[MaxObstacle];
 
 void KillEveryThing()
 {
