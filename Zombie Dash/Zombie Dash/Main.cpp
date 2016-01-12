@@ -23,20 +23,24 @@
 #define MaxNumberOfZombies		2
 #define MaxNumberOfBats			1
 
+#define MaxCountOfCoinsInScene	1
+
 #define MaxNumberOfZombieRot	10
 #define MaxNumberOfBatRot		10
 
-#define ZombieSpeed			0.05f
-#define BatSpeed			0.1f
+#define ZombieSpeed				0.05f
+#define BatSpeed				0.1f
 
-#define Gravity				0.0017f
+#define Gravity					0.0017f
 
-#define MaxBoxOption		2
+#define MaxBoxOption			2
 
-#define BoxHealth			1
-#define BoxSheild			2
+#define BoxHealth				1
+#define BoxSheild				2
 
-#define MaxSizeNumber		8
+#define MaxSizeNumber			8
+
+#define MaxCoinFormationNumber	3
 
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
@@ -628,6 +632,12 @@ struct Map
 	}
 };
 
+struct Formation
+{
+	bool Board[10][10];
+	MovingPic Coin[10][10];
+};
+
 Player ThePlayer;
 Animation TheGuyAnim;
 Animation TheGirlAnim;
@@ -757,6 +767,14 @@ Uint32 CollidedWithTheBox;
 Pic BatAlarm;
 Animation BatAlarmAnim;
 
+Animation NumbersAnim[12];
+Pic NumberYouRan[MaxSizeNumber];
+
+Formation CoinFormations[MaxCoinFormationNumber];
+
+Formation CurrentCoinFormtion[MaxCountOfCoinsInScene];
+Animation CoinAnim;
+
 void KillEveryThing()
 {
 	for (int i = 0; i < MaxNumberOfZombies; i++)
@@ -789,9 +807,6 @@ void KillEveryThing()
 		CounterBatRots %= MaxNumberOfBatRot;
 	}
 }
-
-Animation NumbersAnim[12];
-Pic NumberYouRan[MaxSizeNumber];
 
 bool Collided(G_Rect A, G_Rect B)
 {
@@ -1250,10 +1265,76 @@ void load()
 		NumberYouRan[i].Dst.w = 30;
 		NumberYouRan[i].Dst.h = 40;
 	}
+
+	CoinAnim.load("Pics\\Coin.png", 1, 100, 0, 0, 25, 25);
+
+	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
+	{
+		for(int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+			{
+				CurrentCoinFormtion[i].Coin[j][k].ThePic.Anim = &CoinAnim;
+				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.w = 30;
+				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.h = 30;
+			}
+	}
+
 }
 
 void Init()
 {
+
+	{
+		bool a[10][10] = {
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, true, true, false, false, false, false },
+			{ false, false, false, true, false, false, true, false, false, false },
+			{ false, false, false, true, false, false, true, false, false, false },
+			{ false, false, false, false, true, true, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false }
+		};
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+				CoinFormations[0].Board[j][k] = a[j][k];
+	}
+	{
+		bool a[10][10] = {
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, true, true, true, true, false, false },
+			{ false, false, false, false, true, true, true, true, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+		};
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+				CoinFormations[1].Board[j][k] = a[j][k];
+	}
+	{
+		bool a[10][10] = {
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, true, false, false, false, true, false, false, false, false },
+			{ true, true, true, false, true, true, true, false, false, false },
+			{ false, true, false, false, false, true, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+		};
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+				CoinFormations[2].Board[j][k] = a[j][k];
+	}
 	srand(time(0));
 
 	G_Rect WinPos;
@@ -1363,6 +1444,23 @@ void ResetGame()
 		BatRots[i].LastTick = G_GetTicks();
 	}
 
+	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
+	{
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+			{
+				CurrentCoinFormtion[i].Coin[j][k].x = -100;
+				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.w = 30;
+				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.h = 30;
+				CurrentCoinFormtion[i].Coin[j][k].Ax = 0;
+				CurrentCoinFormtion[i].Coin[j][k].Ay = 0;
+				CurrentCoinFormtion[i].Coin[j][k].Vx = 0;
+				CurrentCoinFormtion[i].Coin[j][k].Vy = 0;
+				CurrentCoinFormtion[i].Coin[j][k].LastTick = G_GetTicks();
+			}
+
+	}
+
 	GunInHandFire.Anim->stop();
 
 
@@ -1445,6 +1543,16 @@ void WhatsInTheBox()
 			BatRots[i].LastTick = G_GetTicks();
 		}
 
+	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
+	{
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+			{
+				if (CurrentCoinFormtion[i].Board[j][k])
+					draw(CurrentCoinFormtion[i].Coin[j][k]);
+				CurrentCoinFormtion[i].Coin[j][k].LastTick = G_GetTicks();
+			}
+	}
 
 	MovingMap.LastTick = G_GetTicks();
 	ThePlayer.LastTick = G_GetTicks();
@@ -1646,7 +1754,6 @@ void Play()
 			CollidedWithTheBox = G_GetTicks();
 			GameState = Whats_In_The_Box;
 			GameBCK.Pause();
-			//ThePlayer.Anim->pause();
 			for (int i = 0; i < MaxNumberOfZombies; i++)
 				Zombies[i].Anim->pause();
 			for (int i = 0; i < MaxNumberOfBats; i++)
@@ -1738,6 +1845,32 @@ void Play()
 		}
 
 		Bats[i].update_pos();
+	}
+
+	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
+	{
+		if ((CurrentCoinFormtion[i].Coin[4][0].x + CurrentCoinFormtion[i].Coin[4][0].ThePic.Dst.w) < 0 && (rand() % 2000) == 500)
+		{
+			int RandFormation = rand();
+			for (int j = 0; j < 10; j++)
+				for (int k = 0; k < 10; k++)
+					CurrentCoinFormtion[i].Board[j][k] = CoinFormations[RandFormation % MaxCoinFormationNumber].Board[j][k];
+			int Rand = rand() % 100;
+			for (int j = 0; j < 10; j++)
+				for (int k = 0; k < 10; k++)
+				{
+					CurrentCoinFormtion[i].Coin[j][k].y = Rand + CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.h*k;
+					CurrentCoinFormtion[i].Coin[j][k].x = 1100 + CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.w*j;
+					CurrentCoinFormtion[i].Coin[j][k].Vx = -MovingMap.v;
+				}
+		}
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+			{
+				if (CurrentCoinFormtion[i].Board[j][k])
+					draw(CurrentCoinFormtion[i].Coin[j][k]);
+				CurrentCoinFormtion[i].Coin[j][k].update_pos();
+			}
 	}
 
 	Box.Vx = -MovingMap.v;
@@ -1925,6 +2058,18 @@ void Pause()
 		draw(ShieldBox);
 	}
 
+	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
+	{
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+			{
+				if (CurrentCoinFormtion[i].Board[j][k])
+					draw(CurrentCoinFormtion[i].Coin[j][k]);
+				CurrentCoinFormtion[i].Coin[j][k].LastTick = G_GetTicks();
+			}
+	}
+	if ((Box.x + Box.ThePic.Dst.w) > 0)
+		draw(Box);
 
 	draw(Shade);
 	draw(ResumeBtnPause);
@@ -1933,6 +2078,7 @@ void Pause()
 
 	MovingMap.LastTick = G_GetTicks();
 	ThePlayer.LastTick = G_GetTicks();
+	Box.LastTick = G_GetTicks();
 
 	ResumeBtnPause.Update();
 	RetryBtnPause.Update();
@@ -2044,6 +2190,21 @@ void Lost()
 		if (!(Bats[i].y > 600 || (Bats[i].x + Bats[i].Pos.w) < 0 || Bats[i].x > 1000))
 			Bats[i].update_pos();
 	}
+
+	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
+	{
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+			{
+				if (CurrentCoinFormtion[i].Board[j][k])
+					draw(CurrentCoinFormtion[i].Coin[j][k]);
+				CurrentCoinFormtion[i].Coin[j][k].Vx = 0;
+				CurrentCoinFormtion[i].Coin[j][k].update_pos();
+			}
+	}
+
+	if ((Box.x + Box.ThePic.Dst.w) > 0)
+		draw(Box);
 
 	draw(Shade);
 	draw(GameOverLine);
