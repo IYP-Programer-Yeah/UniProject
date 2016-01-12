@@ -40,9 +40,11 @@
 
 #define MaxSizeNumber			8
 
-#define MaxCoinFormationNumber	3
+#define MaxCoinFormationNumber	5
 
-#define WhatsInBoxDuration	2000
+#define WhatsInBoxDuration		2000
+
+#define MaxObstacle				2
 
 static int mouseX, mouseY, Event;
 static int GameState = Start_Menu;
@@ -55,6 +57,7 @@ static int Kills = 0;
 static int Walked = 0;
 static int BoxOption = BoxHealth;
 static int CoinCount = 0;
+static int TottalScore = 0;
 
 struct Animation
 {
@@ -790,6 +793,11 @@ Animation HealthInBoxAnim;
 Pic ShieldInBox;
 Animation ShieldInBoxAnim;
 
+Background BeingInjured;
+Animation BeingInjuredAnim;
+
+MovingPic Obstacle[MaxObstacle];
+
 void KillEveryThing()
 {
 	for (int i = 0; i < MaxNumberOfZombies; i++)
@@ -1321,9 +1329,10 @@ void load()
 				CurrentCoinFormtion[i].Coin[j][k].ThePic.Anim = &CoinAnim;
 				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.w = 30;
 				CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst.h = 30;
-}
+			}
 	}
-
+	BeingInjuredAnim.load("Pics\\bg_injury_1.png", 1, 100, 0, 0, 50, 30);
+	BeingInjured.Pic = &BeingInjuredAnim;
 }
 
 void Init()
@@ -1379,6 +1388,40 @@ void Init()
 		for (int j = 0; j < 10; j++)
 			for (int k = 0; k < 10; k++)
 				CoinFormations[2].Board[j][k] = a[j][k];
+	}
+	{
+		bool a[10][10] = {
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, true, true, false, false, false, false },
+			{ false, false, false, true, false, false, true, false, false, false },
+			{ false, false, true, false, false, false, false, true, false, false },
+			{ false, true, false, false, false, false, false, false, true, false },
+			{ true, false, false, false, false, false, false, false, false, true },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+			{ false, false, false, false, false, false, false, false, false, false },
+		};
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+				CoinFormations[3].Board[k][j] = a[j][k];
+	}
+	{
+		bool a[10][10] = {
+			{ false, false, false, false, true, true, false, false, false, false },
+			{ false, false, false, true, false, false, true, false, false, false },
+			{ false, true, true, false, false, false, false, true, true, false },
+			{ false, true, false, false, false, false, false, false, true, false },
+			{ true, false, false, false, false, false, false, false, false, true },
+			{ true, false, false, false, false, false, false, false, false, true },
+			{ false, true, false, false, false, false, false, false, true, false },
+			{ false, true, true, false, false, false, false, true, true, false },
+			{ false, false, false, true, false, false, true, false, false, false },
+			{ false, false, false, false, true, true, false, false, false, false },
+		};
+		for (int j = 0; j < 10; j++)
+			for (int k = 0; k < 10; k++)
+				CoinFormations[4].Board[j][k] = a[j][k];
 	}
 	srand(time(0));
 
@@ -1552,11 +1595,6 @@ void WhatsInTheBox()
 	if (GunInHandFire.Anim->StartTime > 0)
 		draw(GunInHandFire);
 
-	for (int i = PlayerHealth; i < 3; i++)
-		draw(Health[i][0]);
-	for (int i = 0; i < PlayerHealth; i++)
-		draw(Health[i][1]);
-
 	for (int i = 8 - 1; i >= 0; i--)
 	{
 		NumberYouRan[i].Dst.x = 1000 - (8 - i) * 30;
@@ -1611,6 +1649,18 @@ void WhatsInTheBox()
 	MovingMap.LastTick = G_GetTicks();
 	ThePlayer.LastTick = G_GetTicks();
 
+	if (ShieldBoxOn)
+	{
+		ShieldBox.Dst.x = ThePlayer.x + ThePlayer.Pos.w / 2 - ShieldBox.Dst.w / 2 - 25;
+		ShieldBox.Dst.y = ThePlayer.y + ThePlayer.Pos.h / 2 - ShieldBox.Dst.h / 2;
+		draw(ShieldBox);
+	}
+
+	for (int i = PlayerHealth; i < 3; i++)
+		draw(Health[i][0]);
+	for (int i = 0; i < PlayerHealth; i++)
+		draw(Health[i][1]);
+
 	BoxLine.update_pos();
 	draw(BoxLine);
 
@@ -1652,7 +1702,6 @@ void WhatsInTheBox()
 		if (ShieldBoxOn)
 		{
 			ShieldBox.Anim->play();
-			SheildStartTime = G_GetTicks() - SheildStartTime;
 		}
 		BatAlarmAnim.play();
 
@@ -1665,6 +1714,9 @@ void WhatsInTheBox()
 
 void Play()
 {
+	bool GonnaGetInjured = false;
+
+
 	draw(GameBCK);
 	draw(GameBCK);
 	draw(PauseBtn);
@@ -1697,11 +1749,6 @@ void Play()
 		draw(NumberYouRan[i]);
 	}
 
-
-	for (int i = PlayerHealth; i < 3; i++)
-		draw(Health[i][0]);
-	for (int i = 0; i < PlayerHealth; i++)
-		draw(Health[i][1]);
 	for (int i = 0; i < MaxNumberOfZombieRot; i++)
 		if (G_GetTicks() < (ZombieRots[i].ThePic.Anim->StartTime + (ZombieRots[i].ThePic.Anim->FrameCount - ZombieRots[i].ThePic.Anim->PausedFrame)*ZombieRots[i].ThePic.Anim->FrameDuration))
 		{
@@ -1763,6 +1810,7 @@ void Play()
 					CounterZombieRots++;
 					CounterZombieRots %= MaxNumberOfZombieRot;
 					Kills++;
+					TottalScore++;
 				}
 			}
 
@@ -1786,6 +1834,7 @@ void Play()
 					CounterBatRots++;
 					CounterBatRots %= MaxNumberOfBatRot;
 					Kills++;
+					TottalScore++;
 				}
 			}
 			break;
@@ -1852,15 +1901,12 @@ void Play()
 				BatRots[i].ThePic.Anim->StartTime = (BatRots[i].ThePic.Anim->StartTime + (BatRots[i].ThePic.Anim->FrameCount - BatRots[i].ThePic.Anim->PausedFrame)*BatRots[i].ThePic.Anim->FrameDuration) - G_GetTicks();
 			}
 			if (ShieldBoxOn)
-			{
 				ShieldBox.Anim->pause();
-				SheildStartTime = G_GetTicks() - SheildStartTime;
-			}
 			BatAlarmAnim.pause();
 		}
 	}
 
-	if (G_GetTicks() - SheildStartTime < 15000 && ShieldBoxOn)
+	if (G_GetTicks() - SheildStartTime < 15000 + WhatsInBoxDuration && ShieldBoxOn)
 	{
 		ShieldBox.Dst.x = ThePlayer.x + ThePlayer.Pos.w / 2 - ShieldBox.Dst.w / 2 - 25;
 		ShieldBox.Dst.y = ThePlayer.y + ThePlayer.Pos.h / 2 - ShieldBox.Dst.h / 2;
@@ -1875,6 +1921,7 @@ void Play()
 		HealthBox.Dst.y = Box.ThePic.Dst.y;
 		draw(HealthBox);
 	}
+
 	/***************************************************************************************************************************/
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//
@@ -1950,14 +1997,25 @@ void Play()
 				if (CurrentCoinFormtion[i].Board[j][k])
 					draw(CurrentCoinFormtion[i].Coin[j][k]);
 				CurrentCoinFormtion[i].Coin[j][k].update_pos();
+				if (Collided(ThePlayer.Pos, CurrentCoinFormtion[i].Coin[j][k].ThePic.Dst))
+				{
+					CurrentCoinFormtion[i].Board[j][k] = false;
+					CoinCount++;
+					TottalScore++;
+				}
 			}
 	}
+
+	for (int i = PlayerHealth; i < 3; i++)
+		draw(Health[i][0]);
+	for (int i = 0; i < PlayerHealth; i++)
+		draw(Health[i][1]);
 
 	Box.Vx = -MovingMap.v;
 
 	Box.update_pos();
 
-	if ((rand() % 10000) == 1242 && (Box.x + Box.ThePic.Dst.w) < 0)
+	if ((rand() % 1000000) == 1242 && (Box.x + Box.ThePic.Dst.w) < 0)
 	{
 		AlreadyCollidedWithBox = false;
 		Box.x = 1100;
@@ -2005,6 +2063,8 @@ void Play()
 					PlayerHealth--;
 					AlreadyCollided[i] = true;
 				}
+				if (!ShieldBoxOn)
+					GonnaGetInjured = true;
 			}
 			else if (ThePlayer.Vy > 0.0f)
 			{
@@ -2021,7 +2081,10 @@ void Play()
 				CounterZombieRots++;
 				CounterZombieRots %= MaxNumberOfZombieRot;
 				Kills++;
+				TottalScore++;
 			}
+			else if (!ShieldBoxOn)
+				GonnaGetInjured = true;
 		}
 	}
 
@@ -2036,6 +2099,8 @@ void Play()
 			PlayerHealth--;
 			AlreadyCollidedWithBats[i] = true;
 		}
+		if (Collided(PlayerPos, BatPos) && !ShieldBoxOn)
+			GonnaGetInjured = true;
 	}
 
 
@@ -2082,6 +2147,8 @@ void Play()
 		GameBCK.Pause();
 	}
 	Walked += ThePlayer.dt;
+	if (GonnaGetInjured)
+		draw(BeingInjured);
 }
 
 void Pause()
@@ -2093,11 +2160,6 @@ void Pause()
 	draw(GunInHand);
 	if (GunInHandFire.Anim->StartTime > 0)
 		draw(GunInHandFire);
-
-	for (int i = PlayerHealth; i < 3; i++)
-		draw(Health[i][0]);
-	for (int i = 0; i < PlayerHealth; i++)
-		draw(Health[i][1]);
 	
 	for (int i = 8 - 1; i >= 0; i--)
 	{
@@ -2145,6 +2207,9 @@ void Pause()
 		draw(ShieldBox);
 	}
 
+	ThePlayer.Pos.x = ThePlayer.x;
+	ThePlayer.Pos.y = ThePlayer.y;
+
 	for (int i = 0; i < MaxCountOfCoinsInScene; i++)
 	{
 		for (int j = 0; j < 10; j++)
@@ -2157,6 +2222,11 @@ void Pause()
 	}
 	if ((Box.x + Box.ThePic.Dst.w) > 0)
 		draw(Box);
+
+	for (int i = PlayerHealth; i < 3; i++)
+		draw(Health[i][0]);
+	for (int i = 0; i < PlayerHealth; i++)
+		draw(Health[i][1]);
 
 	draw(Shade);
 	draw(ResumeBtnPause);
@@ -2257,11 +2327,6 @@ void Lost()
 	draw(GameBCK);
 	MovingMap.Draw();
 
-	for (int i = PlayerHealth; i < 3; i++)
-		draw(Health[i][0]);
-	for (int i = 0; i < PlayerHealth; i++)
-		draw(Health[i][1]);
-
 	for (int i = 0; i < MaxNumberOfZombies; i++)
 	{
 		draw(Zombies[i]);
@@ -2292,6 +2357,11 @@ void Lost()
 
 	if ((Box.x + Box.ThePic.Dst.w) > 0)
 		draw(Box);
+
+	for (int i = PlayerHealth; i < 3; i++)
+		draw(Health[i][0]);
+	for (int i = 0; i < PlayerHealth; i++)
+		draw(Health[i][1]);
 
 	draw(Shade);
 	draw(GameOverLine);
